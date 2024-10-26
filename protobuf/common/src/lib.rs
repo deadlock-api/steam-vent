@@ -49,6 +49,14 @@ impl MsgKind {
     pub fn value(&self) -> i32 {
         self.0
     }
+
+    pub fn encode_kind(&self, is_protobuf: bool) -> u32 {
+        if is_protobuf {
+            self.value() as u32 | PROTO_MASK
+        } else {
+            self.value() as u32
+        }
+    }
 }
 
 impl From<MsgKind> for i32 {

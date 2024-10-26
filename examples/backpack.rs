@@ -1,9 +1,12 @@
 use std::env::args;
 use std::error::Error;
 use std::io::Cursor;
-use steam_vent::auth::{
-    AuthConfirmationHandler, ConsoleAuthConfirmationHandler, DeviceConfirmationHandler,
-    FileGuardDataStore,
+use steam_vent::{
+    auth::{
+        AuthConfirmationHandler, ConsoleAuthConfirmationHandler, DeviceConfirmationHandler,
+        FileGuardDataStore,
+    },
+    UntypedMessage,
 };
 use steam_vent::{Connection, ConnectionTrait, GameCoordinator, ServerList};
 use steam_vent_proto::tf2::base_gcmessages::CSOEconItem;
@@ -33,6 +36,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("starting game coordinator");
 
     let game_coordinator = GameCoordinator::new(&connection, 440).await?;
+
+    // let message = EncodedBytes(vec![123]);
+    // let res = game_coordinator
+    //     .job_untyped(message, steam_vent_proto::MsgKind(123), true)
+    //     .await?;
 
     println!("requesting backpack");
 

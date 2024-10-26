@@ -142,7 +142,7 @@ pub async fn encode_message<T: NetMessage, S: Sink<BytesMut, Error = NetworkErro
     let mut buff = BytesMut::with_capacity(message.encode_size() + 4);
 
     let mut writer = (&mut buff).writer();
-    header.write(&mut writer, T::KIND, T::IS_PROTOBUF)?;
+    header.write(&mut writer, T::KIND.into(), T::IS_PROTOBUF)?;
     message.write_body(&mut writer)?;
 
     trace!("encoded message({} bytes): {:?}", buff.len(), buff.as_ref());

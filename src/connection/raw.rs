@@ -1,15 +1,16 @@
 use super::Result;
-use crate::connection::{ConnectionImpl, MessageFilter, MessageSender};
 use crate::message::EncodableMessage;
 use crate::net::{NetMessageHeader, RawNetMessage};
 use crate::session::{hello, Session};
-use crate::transport::websocket::connect;
+use crate::{
+    connection::{ConnectionImpl, MessageFilter, MessageSender},
+    transport::websocket::connect_with_proxy,
+};
 use crate::{ConnectionError, ServerList};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::time::Duration;
-use steam_vent_proto::steammessages_clientserver_login::CMsgClientHeartBeat;
-use steam_vent_proto::MsgKindEnum;
+use steam_vent_proto::{steammessages_clientserver_login::CMsgClientHeartBeat, MsgKind};
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tokio::{select, spawn};
@@ -33,8 +34,11 @@ impl Debug for RawConnection {
 }
 
 impl RawConnection {
-    pub async fn connect(server_list: &ServerList) -> Result<Self, ConnectionError> {
-        let (read, write) = connect(&server_list.pick_ws()).await?;
+    pub async fn connect(
+        server_list: &ServerList,
+        proxy: Option<String>,
+    ) -> Result<Self, ConnectionError> {
+        let (read, write) = connect_with_proxy(&server_list.pick_ws(), proxy).await?;
         let filter = MessageFilter::new(read);
         let heartbeat_cancellation_token = CancellationToken::new();
         let mut connection = RawConnection {
@@ -100,11 +104,11 @@ impl ConnectionImpl for RawConnection {
         &self.session
     }
 
-    async fn raw_send_with_kind<Msg: EncodableMessage, K: MsgKindEnum>(
+    async fn raw_send_with_kind<Msg: EncodableMessage>(
         &self,
         header: NetMessageHeader,
         msg: Msg,
-        kind: K,
+        kind: MsgKind,
         is_protobuf: bool,
     ) -> Result<()> {
         let msg = RawNetMessage::from_message_with_kind(header, msg, kind, is_protobuf)?;

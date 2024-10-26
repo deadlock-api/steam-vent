@@ -8,11 +8,11 @@ use protobuf::Message;
 use std::fmt::{Debug, Formatter};
 use std::pin::pin;
 use std::time::Duration;
-use steam_vent_proto::enums_clientserver::EMsg;
 use steam_vent_proto::steammessages_clientserver::cmsg_client_games_played::GamePlayed;
 use steam_vent_proto::steammessages_clientserver::CMsgClientGamesPlayed;
 use steam_vent_proto::steammessages_clientserver_2::CMsgGCClient;
 use steam_vent_proto::steammessages_clientserver_login::CMsgClientHello;
+use steam_vent_proto::{enums_clientserver::EMsg, MsgKind};
 use steam_vent_proto::{MsgKindEnum, RpcMessage, RpcMessageWithKind};
 use tokio::spawn;
 use tokio::sync::mpsc::channel;
@@ -23,7 +23,7 @@ use tracing::debug;
 
 pub struct GameCoordinator {
     app_id: u32,
-    filter: MessageFilter,
+    pub filter: MessageFilter,
     sender: MessageSender,
     session: Session,
     timeout: Duration,
@@ -126,6 +126,33 @@ impl GameCoordinator {
         select(pin!(welcome), pin!(hello_sender)).await;
         Ok(gc)
     }
+    pub async fn new_manual(connection: &Connection, app_id: u32) -> Result<Self, NetworkError> {
+        let (tx, rx) = channel(10);
+        let filter = MessageFilter::new(ReceiverStream::new(rx));
+        let gc_messages = connection.on::<ClientFromGcMessage>();
+        spawn(async move {
+            let mut gc_messages = pin!(gc_messages);
+            while let Some(gc_message) = gc_messages.next().await {
+                if let Ok(message) = gc_message {
+                    let (kind, is_protobuf) = decode_kind(message.data.msgtype());
+                    debug!(kind = ?kind, is_protobuf, "received gc messages");
+
+                    let payload = message.data.payload();
+                    tx.send(RawNetMessage::read(payload.into())).await.ok();
+                }
+            }
+        });
+
+        let gc = GameCoordinator {
+            app_id,
+            filter,
+            sender: connection.sender().clone(),
+            session: connection.session().clone().with_app_id(app_id),
+            timeout: connection.timeout(),
+        };
+
+        Ok(gc)
+    }
 
     async fn send_hello(&self) -> Result<(), NetworkError> {
         if self.session.is_server() {
@@ -137,7 +164,7 @@ impl GameCoordinator {
         Ok(())
     }
 
-    async fn wait_welcome(&self) -> Result<(), NetworkError> {
+    pub async fn wait_welcome(&self) -> Result<(), NetworkError> {
         if self.session.is_server() {
             self.filter.one_kind(GCMsgKind::k_EMsgGCServerWelcome)
         } else {
@@ -162,11 +189,11 @@ impl ConnectionImpl for GameCoordinator {
         &self.session
     }
 
-    async fn raw_send_with_kind<Msg: EncodableMessage, K: MsgKindEnum>(
+    async fn raw_send_with_kind<Msg: EncodableMessage>(
         &self,
         header: NetMessageHeader,
         msg: Msg,
-        kind: K,
+        kind: MsgKind,
         is_protobuf: bool,
     ) -> Result<(), NetworkError> {
         let nested_header = NetMessageHeader::default();
@@ -174,7 +201,7 @@ impl ConnectionImpl for GameCoordinator {
             nested_header.encode_size(kind.into(), is_protobuf) + msg.encode_size(),
         );
 
-        nested_header.write(&mut payload, kind, is_protobuf)?;
+        header.write(&mut payload, kind, is_protobuf)?;
         msg.write_body(&mut payload)?;
         let data = CMsgGCClient {
             appid: Some(self.app_id),

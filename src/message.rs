@@ -77,6 +77,21 @@ pub trait NetMessage: EncodableMessage {
     const IS_PROTOBUF: bool = false;
 }
 
+#[derive(Debug)]
+pub struct UntypedMessage(pub Vec<u8>);
+
+impl EncodableMessage for UntypedMessage {
+    fn write_body<W: Write>(&self, mut writer: W) -> Result<(), std::io::Error> {
+        writer.write_all(&self.0)?;
+
+        Ok(())
+    }
+
+    fn encode_size(&self) -> usize {
+        self.0.len()
+    }
+}
+
 #[derive(Debug, BinRead)]
 pub struct ChannelEncryptRequest {
     pub protocol: u32,

@@ -24,7 +24,16 @@ pub struct UnAuthenticatedConnection(RawConnection);
 impl UnAuthenticatedConnection {
     pub async fn connect(server_list: &ServerList) -> Result<Self, ConnectionError> {
         Ok(UnAuthenticatedConnection(
-            RawConnection::connect(server_list).await?,
+            RawConnection::connect(server_list, None).await?,
+        ))
+    }
+
+    pub async fn connect_with_proxy(
+        server_list: &ServerList,
+        proxy: String,
+    ) -> Result<Self, ConnectionError> {
+        Ok(UnAuthenticatedConnection(
+            RawConnection::connect(server_list, Some(proxy)).await?,
         ))
     }
 
@@ -157,7 +166,7 @@ pub(crate) async fn service_method_un_authenticated<Msg: ServiceMethodRequest>(
     let msg = RawNetMessage::from_message_with_kind(
         header,
         ServiceMethodMessage(msg),
-        EMsg::k_EMsgServiceMethodCallFromClientNonAuthed,
+        EMsg::k_EMsgServiceMethodCallFromClientNonAuthed.into(),
         true,
     )?;
     connection.sender.send_raw(msg).await?;

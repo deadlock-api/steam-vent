@@ -9,7 +9,7 @@ use std::fmt::Debug;
 use std::io::{Cursor, Seek, SeekFrom};
 use steam_vent_crypto::CryptError;
 use steam_vent_proto::enums_clientserver::EMsg;
-use steam_vent_proto::{MsgKind, MsgKindEnum};
+use steam_vent_proto::{MsgKind, };
 use steamid_ng::SteamID;
 use thiserror::Error;
 use tracing::{debug, trace};
@@ -43,6 +43,11 @@ pub enum NetworkError {
     Timeout,
     #[error("Remote returned an error code: {0:?}")]
     ApiError(EResult),
+
+    #[error("{0}")]
+    Reqwest(#[from] reqwest::Error),
+    #[error("{0}")]
+    ReqwestWs(#[from] reqwest_websocket::Error),
 }
 
 impl From<EResult> for NetworkError {
@@ -106,6 +111,7 @@ impl NetMessageHeader {
             let header = if header_length > 0 {
                 let mut bytes = vec![0; header_length as usize];
                 let num = reader.read(&mut bytes)?;
+
                 CMsgProtoBufHeader::parse_from_bytes(&bytes[0..num])
                     .map_err(|_| NetworkError::InvalidHeader)?
                     .into()
@@ -150,17 +156,17 @@ impl NetMessageHeader {
         }
     }
 
-    pub(crate) fn write<W: WriteBytesExt, K: MsgKindEnum>(
+    pub(crate) fn write<W: WriteBytesExt>(
         &self,
         writer: &mut W,
-        kind: K,
+        kind: MsgKind,
         proto: bool,
     ) -> std::io::Result<()> {
-        if MsgKind::from(kind) == EMsg::k_EMsgChannelEncryptResponse {
+        if kind == EMsg::k_EMsgChannelEncryptResponse {
             writer.write_u32::<LittleEndian>(kind.value() as u32)?;
         } else if proto {
             trace!("writing header for {:?} protobuf message: {:?}", kind, self);
-            let proto_header = self.proto_header(kind.into());
+            let proto_header = self.proto_header(kind);
             writer.write_u32::<LittleEndian>(kind.encode_kind(true))?;
             writer.write_u32::<LittleEndian>(proto_header.compute_size() as u32)?;
             proto_header.write_to_writer(writer)?;
@@ -207,6 +213,7 @@ impl NetMessageHeader {
             proto_header.set_target_job_name(target_job_name.into());
         }
         proto_header.routing_appid = self.source_app_id;
+
         proto_header
     }
 
@@ -273,13 +280,13 @@ impl RawNetMessage {
     }
 
     pub fn from_message<T: NetMessage>(header: NetMessageHeader, message: T) -> Result<Self> {
-        Self::from_message_with_kind(header, message, T::KIND, T::IS_PROTOBUF)
+        Self::from_message_with_kind(header, message, T::KIND.into(), T::IS_PROTOBUF)
     }
 
-    pub fn from_message_with_kind<T: EncodableMessage, K: MsgKindEnum>(
+    pub fn from_message_with_kind<T: EncodableMessage>(
         mut header: NetMessageHeader,
         message: T,
-        kind: K,
+        kind: MsgKind,
         is_protobuf: bool,
     ) -> Result<Self> {
         debug!("writing raw {:?} message", kind);
