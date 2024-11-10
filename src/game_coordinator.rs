@@ -76,30 +76,14 @@ impl Debug for GameCoordinator {
 }
 
 impl GameCoordinator {
+    /// Create a new GameCoordinator and initialize it with the standard startup sequence.
+    ///
+    /// The startup sequence is as follows:
+    /// 1. Send a `CMsgClientGamesPlayed` with the app id
+    /// 2. Send hello events to the server
+    /// 2. Wait for a `k_EMsgGC...Welcome` event
     pub async fn new(connection: &Connection, app_id: u32) -> Result<Self, NetworkError> {
-        let (tx, rx) = channel(10);
-        let filter = MessageFilter::new(ReceiverStream::new(rx));
-        let gc_messages = connection.on::<ClientFromGcMessage>();
-        spawn(async move {
-            let mut gc_messages = pin!(gc_messages);
-            while let Some(gc_message) = gc_messages.next().await {
-                if let Ok(message) = gc_message {
-                    let (kind, is_protobuf) = decode_kind(message.data.msgtype());
-                    debug!(kind = ?kind, is_protobuf, "received gc messages");
-
-                    let payload = message.data.payload();
-                    tx.send(RawNetMessage::read(payload.into())).await.ok();
-                }
-            }
-        });
-
-        let gc = GameCoordinator {
-            app_id,
-            filter,
-            sender: connection.sender().clone(),
-            session: connection.session().clone().with_app_id(app_id),
-            timeout: connection.timeout(),
-        };
+        let gc = GameCoordinator::new_without_startup(connection, app_id).await?;
 
         connection
             .send_with_kind(
@@ -126,7 +110,14 @@ impl GameCoordinator {
         select(pin!(welcome), pin!(hello_sender)).await;
         Ok(gc)
     }
-    pub async fn new_manual(connection: &Connection, app_id: u32) -> Result<Self, NetworkError> {
+
+    /// Create a new GameCoordinator without running the startup sequence.
+    ///
+    /// Some games don't follow the same hello/welcome sequence.
+    pub async fn new_without_startup(
+        connection: &Connection,
+        app_id: u32,
+    ) -> Result<Self, NetworkError> {
         let (tx, rx) = channel(10);
         let filter = MessageFilter::new(ReceiverStream::new(rx));
         let gc_messages = connection.on::<ClientFromGcMessage>();
@@ -154,7 +145,7 @@ impl GameCoordinator {
         Ok(gc)
     }
 
-    async fn send_hello(&self) -> Result<(), NetworkError> {
+    pub async fn send_hello(&self) -> Result<(), NetworkError> {
         if self.session.is_server() {
             self.send_with_kind(CMsgClientHello::default(), GCMsgKind::k_EMsgGCServerHello)
                 .await?;
@@ -198,7 +189,7 @@ impl ConnectionImpl for GameCoordinator {
     ) -> Result<(), NetworkError> {
         let nested_header = NetMessageHeader::default();
         let mut payload: Vec<u8> = Vec::with_capacity(
-            nested_header.encode_size(kind.into(), is_protobuf) + msg.encode_size(),
+            nested_header.encode_size(kind, is_protobuf) + msg.encode_size(),
         );
 
         header.write(&mut payload, kind, is_protobuf)?;
