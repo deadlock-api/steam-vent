@@ -30,10 +30,10 @@ impl UnAuthenticatedConnection {
 
     pub async fn connect_with_proxy(
         server_list: &ServerList,
-        proxy: String,
+        proxy: Option<String>,
     ) -> Result<Self, ConnectionError> {
         Ok(UnAuthenticatedConnection(
-            RawConnection::connect(server_list, Some(proxy)).await?,
+            RawConnection::connect(server_list, proxy).await?,
         ))
     }
 

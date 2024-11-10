@@ -93,7 +93,7 @@ impl Connection {
         password: &str,
         guard_data_store: G,
         confirmation_handler: H,
-        proxy: String,
+        proxy: Option<String>,
     ) -> Result<Self, ConnectionError> {
         UnAuthenticatedConnection::connect_with_proxy(server_list, proxy)
             .await?
