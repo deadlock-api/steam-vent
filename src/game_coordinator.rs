@@ -150,7 +150,8 @@ impl GameCoordinator {
             self.send_with_kind(CMsgClientHello::default(), GCMsgKind::k_EMsgGCServerHello)
                 .await?;
         } else {
-            self.send(CMsgClientHello::default()).await?;
+            self.send_with_kind(CMsgClientHello::default(), GCMsgKind::k_EMsgGCClientHello)
+                .await?;
         }
         Ok(())
     }
