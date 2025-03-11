@@ -12,8 +12,8 @@ type Result<T, E = NetworkError> = std::result::Result<T, E>;
 pub async fn connect(
     addr: &str,
 ) -> Result<(
-    impl Stream<Item = Result<RawNetMessage>>,
     impl Sink<RawNetMessage, Error = NetworkError>,
+    impl Stream<Item = Result<RawNetMessage>>,
 )> {
     connect_with_proxy(addr, None).await
 }
@@ -23,8 +23,8 @@ pub async fn connect_with_proxy(
     addr: &str,
     proxy_url: Option<String>,
 ) -> Result<(
-    impl Stream<Item = Result<RawNetMessage>>,
     impl Sink<RawNetMessage, Error = NetworkError>,
+    impl Stream<Item = Result<RawNetMessage>>,
 )> {
     // Build the client with optional proxy support
     let mut client_builder = Client::builder();
@@ -45,6 +45,11 @@ pub async fn connect_with_proxy(
     let (raw_write, raw_read) = websocket.split();
 
     Ok((
+        raw_write.with(|msg: RawNetMessage| {
+            let mut body = msg.header_buffer;
+            body.unsplit(msg.data);
+            ready(Ok(WsMessage::Binary(body.to_vec())))
+        }),
         flatten_multi(
             raw_read
                 .map_err(NetworkError::from)
@@ -54,10 +59,5 @@ pub async fn connect_with_proxy(
                 })
                 .map(|res| res.and_then(RawNetMessage::read)),
         ),
-        raw_write.with(|msg: RawNetMessage| {
-            let mut body = msg.header_buffer;
-            body.unsplit(msg.data);
-            ready(Ok(WsMessage::Binary(body.to_vec())))
-        }),
     ))
 }

@@ -1,8 +1,10 @@
+#![allow(clippy::result_large_err)]
+
 pub mod auth;
 pub mod connection;
 mod eresult;
 mod game_coordinator;
-mod message;
+pub mod message;
 mod net;
 mod serverlist;
 mod service_method;

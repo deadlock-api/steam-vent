@@ -22,6 +22,7 @@ use thiserror::Error;
 use tokio_stream::Stream;
 use tracing::{debug, trace};
 
+/// Malformed message body
 #[derive(Error, Debug)]
 #[error("Malformed message body for {0:?}: {1}")]
 pub struct MalformedBody(MsgKind, MessageBodyError);
@@ -32,6 +33,7 @@ impl MalformedBody {
     }
 }
 
+/// Error while parsing the message body
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum MessageBodyError {
@@ -55,6 +57,11 @@ impl From<String> for MessageBodyError {
     }
 }
 
+/// A message which can be encoded and/or decoded
+///
+/// Applications can implement this trait on a struct to allow sending it using
+/// [`raw_send_with_kind`](crate::ConnectionTrait::raw_send_with_kind). To use the higher level messages a struct also needs to implement
+/// [`NetMessage`]
 pub trait EncodableMessage: Sized + Debug + Send {
     fn read_body(_data: BytesMut, _header: &NetMessageHeader) -> Result<Self, MalformedBody> {
         panic!("Reading not implemented for {}", type_name::<Self>())
@@ -71,6 +78,7 @@ pub trait EncodableMessage: Sized + Debug + Send {
     fn process_header(&self, _header: &mut NetMessageHeader) {}
 }
 
+/// A message with associated kind
 pub trait NetMessage: EncodableMessage {
     type KindEnum: MsgKindEnum;
     const KIND: Self::KindEnum;
@@ -93,7 +101,7 @@ impl EncodableMessage for UntypedMessage {
 }
 
 #[derive(Debug, BinRead)]
-pub struct ChannelEncryptRequest {
+pub(crate) struct ChannelEncryptRequest {
     pub protocol: u32,
     #[allow(dead_code)]
     pub universe: u32,
@@ -114,7 +122,7 @@ impl NetMessage for ChannelEncryptRequest {
 }
 
 #[derive(Debug, BinRead)]
-pub struct ChannelEncryptResult {
+pub(crate) struct ChannelEncryptResult {
     pub result: u32,
 }
 
@@ -132,7 +140,7 @@ impl NetMessage for ChannelEncryptResult {
 }
 
 #[derive(Debug)]
-pub struct ClientEncryptResponse {
+pub(crate) struct ClientEncryptResponse {
     pub protocol: u32,
     pub encrypted_key: Vec<u8>,
 }
@@ -179,6 +187,7 @@ impl Read for MaybeZipReader {
     }
 }
 
+/// Flatten any "multi" messages in a stream of raw messages
 pub fn flatten_multi<S: Stream<Item = Result<RawNetMessage, NetworkError>>>(
     source: S,
 ) -> impl Stream<Item = Result<RawNetMessage, NetworkError>> {
@@ -241,7 +250,7 @@ impl<R: Read> Iterator for MultiBodyIter<R> {
 }
 
 #[derive(Debug)]
-pub struct ServiceMethodMessage<Request: Debug>(pub Request);
+pub(crate) struct ServiceMethodMessage<Request: Debug>(pub Request);
 
 impl<Request: ServiceMethodRequest + Debug> EncodableMessage for ServiceMethodMessage<Request> {
     fn read_body(data: BytesMut, _header: &NetMessageHeader) -> Result<Self, MalformedBody> {
@@ -274,7 +283,7 @@ impl<Request: ServiceMethodRequest + Debug> NetMessage for ServiceMethodMessage<
 }
 
 #[derive(Debug)]
-pub struct ServiceMethodResponseMessage {
+pub(crate) struct ServiceMethodResponseMessage {
     job_name: String,
     body: BytesMut,
 }
@@ -317,7 +326,7 @@ impl NetMessage for ServiceMethodResponseMessage {
 
 #[derive(Debug, Clone)]
 pub struct ServiceMethodNotification {
-    pub(crate) job_name: String,
+    pub job_name: String,
     body: BytesMut,
 }
 

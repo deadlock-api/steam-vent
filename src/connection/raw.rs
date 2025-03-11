@@ -5,8 +5,10 @@ use crate::session::{hello, Session};
 use crate::{
     connection::{ConnectionImpl, MessageFilter, MessageSender},
     transport::websocket::connect_with_proxy,
+    NetworkError,
 };
 use crate::{ConnectionError, ServerList};
+use futures_util::{Sink, Stream};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::time::Duration;
@@ -38,14 +40,24 @@ impl RawConnection {
         server_list: &ServerList,
         proxy: Option<String>,
     ) -> Result<Self, ConnectionError> {
-        let (read, write) = connect_with_proxy(&server_list.pick_ws(), proxy).await?;
-        let filter = MessageFilter::new(read);
+        let (sender, receiver) = connect_with_proxy(&server_list.pick_ws(), proxy).await?;
+        Self::from_sender_receiver(sender, receiver).await
+    }
+
+    pub async fn from_sender_receiver<
+        Sender: Sink<RawNetMessage, Error = NetworkError> + Send + 'static,
+        Receiver: Stream<Item = Result<RawNetMessage>> + Send + 'static,
+    >(
+        sender: Sender,
+        receiver: Receiver,
+    ) -> Result<Self, ConnectionError> {
+        let filter = MessageFilter::new(receiver);
         let heartbeat_cancellation_token = CancellationToken::new();
         let mut connection = RawConnection {
             session: Session::default(),
             filter,
             sender: MessageSender {
-                write: Arc::new(Mutex::new(write)),
+                write: Arc::new(Mutex::new(Box::pin(sender))),
             },
             timeout: Duration::from_secs(10),
             heartbeat_cancellation_token: heartbeat_cancellation_token.clone(),
