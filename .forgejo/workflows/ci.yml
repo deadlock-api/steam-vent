@@ -1,0 +1,64 @@
+name: "CI"
+on:
+  pull_request:
+  push:
+
+jobs:
+  check-proto:
+    runs-on: nix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: https://codeberg.org/icewind/attic-action@v1
+        with:
+          name: ci
+          instance: https://cache.icewind.me
+          authToken: "${{ secrets.ATTIC_TOKEN }}"
+      - run: |
+          nix run .#proto-builder protobuf/steam/protos protobuf/steam/src/generated
+      - run: |
+          nix run .#proto-builder protobuf/tf2/protos protobuf/tf2/src/generated
+      - run: |
+          nix run .#proto-builder protobuf/csgo/protos protobuf/csgo/src/generated
+      - run: |
+          nix run .#proto-builder protobuf/dota2/protos protobuf/dota2/src/generated
+      - run: |
+          git diff
+          git diff-index --quiet HEAD --
+
+  checks:
+    runs-on: nix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: https://codeberg.org/icewind/attic-action@v1
+        with:
+          name: link
+          instance: https://cache.icewind.link
+          authToken: "${{ secrets.ATTIC_TOKEN }}"
+      - run: nix flake check --keep-going
+
+  semver-checks:
+    runs-on: nix
+    needs: [checks]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: https://codeberg.org/icewind/attic-action@v1
+        with:
+          name: ci
+          instance: https://cache.icewind.me
+          authToken: "${{ secrets.ATTIC_TOKEN }}"
+      - run: nix run .#semver-checks
+
+  tests:
+    runs-on: nix
+    needs: [checks]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: https://codeberg.org/icewind/attic-action@v1
+        with:
+          name: ci
+          instance: https://cache.icewind.me
+          authToken: "${{ secrets.ATTIC_TOKEN }}"
+      - run: nix build .#checks.x86_64-linux.examples
+      - name: Login
+        run: |
+          ./result/bin/login ${{ secrets.STEAM_USERNAME }} "${{ secrets.STEAM_PASSWORD }}" "${{ secrets.STEAM_GUARD_SECRET }}"
