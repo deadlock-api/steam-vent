@@ -2,12 +2,14 @@
 
 ### Interact with the Steam network via rust
 
-Allows communication with the steam servers using the same protocol as the regular steam client.
+Allows communication with the steam servers using the same protocol as the
+regular steam client.
 
 ## State
 
-While the project is still incomplete, the most forms of authenticating to steam are implemented and you can send
-requests for the protobuf definitions included in the project.
+While the project is still incomplete, the most forms of authenticating to steam
+are implemented and you can send requests for the protobuf definitions included
+in the project.
 
 - [x] Anonymous sessions
 - [x] Password Authentication
@@ -23,7 +25,8 @@ requests for the protobuf definitions included in the project.
 
 ## Usage
 
-Note that this project is still in early development and apis might see large changes.
+Note that this project is still in early development and apis might see large
+changes.
 
 ```rust
 use std::error::Error;
@@ -55,6 +58,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 ## Credit
 
-This is in large parts inspired by and based of [@DoctorMcKay's](https://github.com/DoctorMcKay) work
-on [SteamUser](https://github.com/DoctorMcKay/node-steam-user/),
-massive credits go to all who worked on that.
+This is in large parts inspired by and based of
+[@DoctorMcKay's](https://github.com/DoctorMcKay) work on
+[SteamUser](https://github.com/DoctorMcKay/node-steam-user/), massive credits go
+to all who worked on that.
