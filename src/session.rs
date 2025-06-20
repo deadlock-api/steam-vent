@@ -15,7 +15,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use steam_vent_crypto::CryptError;
 use steam_vent_proto::steammessages_base::cmsg_ipaddress;
-use steamid_ng::{AccountType, Instance, SteamID, Universe};
+use steamid_ng::{
+    AccountType, Instance, InstanceFlags, InstanceType, SteamID, SteamIDParseError, Universe,
+};
 use thiserror::Error;
 use tracing::debug;
 
@@ -28,6 +30,8 @@ pub enum ConnectionError {
     Network(#[from] NetworkError),
     #[error("Login failed: {0:#}")]
     LoginError(#[from] LoginError),
+    #[error("Steam ID Parse Error: {0:#}")]
+    SteamIdParse(#[from] SteamIDParseError),
     #[error("Aborted")]
     Aborted,
     #[error("Unsupported confirmation action")]
@@ -101,7 +105,7 @@ pub struct Session {
     pub public_ip: Option<IpAddr>,
     pub ip_country_code: Option<String>,
     pub job_id: JobIdCounter,
-    pub steam_id: SteamID,
+    pub steam_id: Option<SteamID>,
     pub heartbeat_interval: Duration,
     pub app_id: Option<u32>,
 }
@@ -114,7 +118,7 @@ impl Default for Session {
             public_ip: None,
             ip_country_code: None,
             job_id: JobIdCounter::default(),
-            steam_id: SteamID::from(0),
+            steam_id: None,
             heartbeat_interval: Duration::from_secs(15),
             app_id: None,
         }
@@ -134,8 +138,13 @@ impl Session {
     }
 
     pub fn is_server(&self) -> bool {
-        self.steam_id.account_type() == AccountType::AnonGameServer
-            || self.steam_id.account_type() == AccountType::GameServer
+        match self.steam_id {
+            Some(steam_id) => {
+                steam_id.account_type() == AccountType::AnonGameServer
+                    || steam_id.account_type() == AccountType::GameServer
+            }
+            None => false,
+        }
     }
 
     pub fn with_app_id(mut self, app_id: u32) -> Self {
@@ -164,7 +173,12 @@ pub async fn anonymous(connection: &RawConnection, account_type: AccountType) ->
     send_logon(
         connection,
         logon,
-        SteamID::new(0, Instance::All, account_type, Universe::Public),
+        SteamID::new(
+            0,
+            Instance::new(InstanceType::All, InstanceFlags::None),
+            account_type,
+            Universe::Public,
+        ),
     )
     .await
 }
@@ -204,7 +218,7 @@ async fn send_logon(
     let header = NetMessageHeader {
         source_job_id: JobId::NONE,
         target_job_id: JobId::NONE,
-        steam_id,
+        steam_id: Some(steam_id),
         ..NetMessageHeader::default()
     };
 
@@ -248,7 +262,7 @@ pub async fn hello<C: ConnectionImpl>(conn: &mut C) -> std::result::Result<(), N
         session_id: 0,
         source_job_id: JobId::NONE,
         target_job_id: JobId::NONE,
-        steam_id: SteamID::from(0),
+        steam_id: None,
         ..NetMessageHeader::default()
     };
 

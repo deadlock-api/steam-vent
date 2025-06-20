@@ -76,7 +76,7 @@ impl JobId {
 pub struct NetMessageHeader {
     pub source_job_id: JobId,
     pub target_job_id: JobId,
-    pub steam_id: SteamID,
+    pub steam_id: Option<SteamID>,
     pub session_id: i32,
     pub target_job_name: Option<Cow<'static, str>>,
     pub result: Option<i32>,
@@ -88,7 +88,7 @@ impl From<CMsgProtoBufHeader> for NetMessageHeader {
         NetMessageHeader {
             source_job_id: JobId(header.jobid_source()),
             target_job_id: JobId(header.jobid_target()),
-            steam_id: header.steamid().into(),
+            steam_id: header.steamid.and_then(|s| SteamID::from_steam64(s).ok()),
             session_id: header.client_sessionid(),
             target_job_name: header
                 .has_target_job_name()
@@ -129,7 +129,7 @@ impl NetMessageHeader {
                     target_job_id: JobId(target_job_id),
                     source_job_id: JobId(source_job_id),
                     session_id: 0,
-                    steam_id: SteamID::default(),
+                    steam_id: None,
                     ..NetMessageHeader::default()
                 },
                 4 + 8 + 8,
@@ -139,7 +139,7 @@ impl NetMessageHeader {
             let target_job_id = reader.read_u64::<LittleEndian>()?;
             let source_job_id = reader.read_u64::<LittleEndian>()?;
             reader.seek(SeekFrom::Current(1))?; // header canary (fixed)
-            let steam_id = reader.read_u64::<LittleEndian>()?.into();
+            let steam_id = SteamID::from_steam64(reader.read_u64::<LittleEndian>()?).ok();
             let session_id = reader.read_i32::<LittleEndian>()?;
             Ok((
                 NetMessageHeader {
@@ -178,7 +178,7 @@ impl NetMessageHeader {
             writer.write_u64::<LittleEndian>(self.target_job_id.0)?;
             writer.write_u64::<LittleEndian>(self.source_job_id.0)?;
             writer.write_u8(239)?;
-            writer.write_u64::<LittleEndian>(self.steam_id.into())?;
+            writer.write_u64::<LittleEndian>(self.steam_id.unwrap().steam64())?;
             writer.write_i32::<LittleEndian>(self.session_id)?;
         }
         Ok(())
@@ -192,12 +192,12 @@ impl NetMessageHeader {
         if self.target_job_id != JobId::NONE {
             proto_header.set_jobid_target(self.target_job_id.0);
         }
-        if self.steam_id != SteamID::default() {
+        if let Some(steam_id) = self.steam_id {
             proto_header.set_steamid(
                 if kind == EMsg::k_EMsgServiceMethodCallFromClientNonAuthed {
                     0
                 } else {
-                    self.steam_id.into()
+                    steam_id.into()
                 },
             );
         }
@@ -229,7 +229,7 @@ impl NetMessageHeader {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RawNetMessage {
     pub kind: MsgKind,
     pub is_protobuf: bool,

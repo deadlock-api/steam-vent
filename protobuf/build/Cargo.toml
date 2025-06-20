@@ -8,9 +8,9 @@ license = "MIT"
 repository = "https://github.com/icewind1991/steam-vent"
 
 [dependencies]
-protobuf-codegen = "=3.5.1"
-protobuf-parse = "=3.5.1"
-protobuf = "=3.5.1"
+protobuf-codegen = "=3.7.2"
+protobuf-parse = "=3.7.2"
+protobuf = "=3.7.2"
 walkdir = "2.3.3"
 clap = { version = "4.3.19", features = ["derive"] }
 quote = "1.0.32"

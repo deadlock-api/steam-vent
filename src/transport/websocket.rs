@@ -1,6 +1,7 @@
 use crate::message::flatten_multi;
 use crate::net::{NetworkError, RawNetMessage};
 use crate::transport::assert_can_unsplit;
+use bytes::Bytes;
 use futures_util::{Sink, SinkExt, Stream, StreamExt, TryStreamExt};
 use reqwest::{Client, Proxy};
 use reqwest_websocket::{Message as WsMessage, RequestBuilderExt};
@@ -41,7 +42,7 @@ pub async fn connect_with_proxy(
                 .map_err(NetworkError::from)
                 .map_ok(|msg| match msg {
                     WsMessage::Binary(data) => data,
-                    _ => vec![], // Handle other message types as needed
+                    _ => Bytes::default(),
                 })
                 .map_ok(|vec| vec.into_iter().collect())
                 .map(|res| res.and_then(RawNetMessage::read)),
@@ -50,7 +51,7 @@ pub async fn connect_with_proxy(
             let mut body = msg.header_buffer;
             assert_can_unsplit(&body, &msg.data);
             body.unsplit(msg.data);
-            ready(Ok(WsMessage::Binary(body.to_vec())))
+            ready(Ok(WsMessage::Binary(body.to_vec().into())))
         }),
     ))
 }

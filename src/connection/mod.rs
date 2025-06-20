@@ -101,7 +101,7 @@ impl Connection {
             .await
     }
 
-    pub fn steam_id(&self) -> SteamID {
+    pub fn steam_id(&self) -> Option<SteamID> {
         self.session().steam_id
     }
 

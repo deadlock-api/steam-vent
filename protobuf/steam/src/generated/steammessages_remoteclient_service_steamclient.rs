@@ -23,7 +23,7 @@
 
 /// Generated files are compatible only with the same version
 /// of protobuf runtime.
-const _PROTOBUF_VERSION_CHECK: () = ::steam_vent_proto_common::protobuf::VERSION_3_5_1;
+const _PROTOBUF_VERSION_CHECK: () = ::steam_vent_proto_common::protobuf::VERSION_3_7_2;
 
 
 const _VENT_PROTO_VERSION_CHECK: () = ::steam_vent_proto_common::VERSION_0_5_0;

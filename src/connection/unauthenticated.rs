@@ -71,7 +71,7 @@ impl UnAuthenticatedConnection {
             debug!(account, "found stored guard data");
         }
         let begin = begin_password_auth(&mut raw, account, password, guard_data.as_deref()).await?;
-        let steam_id = SteamID::from(begin.steam_id());
+        let steam_id = SteamID::from_steam64(begin.steam_id())?;
 
         let allowed_confirmations = begin.allowed_confirmations();
 

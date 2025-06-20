@@ -23,7 +23,7 @@
 
 /// Generated files are compatible only with the same version
 /// of protobuf runtime.
-const _PROTOBUF_VERSION_CHECK: () = ::steam_vent_proto_common::protobuf::VERSION_3_5_1;
+const _PROTOBUF_VERSION_CHECK: () = ::steam_vent_proto_common::protobuf::VERSION_3_7_2;
 
 // @@protoc_insertion_point(message:CMsgClientUpdateUserGameInfo)
 #[derive(PartialEq,Clone,Default,Debug)]
