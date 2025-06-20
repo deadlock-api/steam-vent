@@ -10,16 +10,6 @@ use tracing::{debug, instrument};
 type Result<T, E = NetworkError> = std::result::Result<T, E>;
 
 #[instrument]
-pub async fn connect(
-    addr: &str,
-) -> Result<(
-    impl Stream<Item = Result<RawNetMessage>>,
-    impl Sink<RawNetMessage, Error = NetworkError>,
-)> {
-    connect_with_proxy(addr, None).await
-}
-
-#[instrument]
 pub async fn connect_with_proxy(
     addr: &str,
     proxy_url: Option<String>,

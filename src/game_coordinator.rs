@@ -188,9 +188,8 @@ impl ConnectionImpl for GameCoordinator {
         is_protobuf: bool,
     ) -> Result<(), NetworkError> {
         let nested_header = NetMessageHeader::default();
-        let mut payload: Vec<u8> = Vec::with_capacity(
-            nested_header.encode_size(kind, is_protobuf) + msg.encode_size(),
-        );
+        let mut payload: Vec<u8> =
+            Vec::with_capacity(nested_header.encode_size(kind, is_protobuf) + msg.encode_size());
 
         header.write(&mut payload, kind, is_protobuf)?;
         msg.write_body(&mut payload)?;

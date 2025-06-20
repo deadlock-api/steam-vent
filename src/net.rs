@@ -9,7 +9,7 @@ use std::fmt::Debug;
 use std::io::{Cursor, Seek, SeekFrom};
 use steam_vent_crypto::CryptError;
 use steam_vent_proto::enums_clientserver::EMsg;
-use steam_vent_proto::{MsgKind, };
+use steam_vent_proto::MsgKind;
 use steamid_ng::SteamID;
 use thiserror::Error;
 use tracing::{debug, trace};
@@ -301,7 +301,7 @@ impl RawNetMessage {
         //
         // 8 byte frame header, 16 byte iv, header, body, 16 byte encryption padding
         let mut buff = BytesMut::with_capacity(
-            8 + 16 + header.encode_size(kind.into(), is_protobuf) + body_size + 16,
+            8 + 16 + header.encode_size(kind, is_protobuf) + body_size + 16,
         );
         buff.extend([0; 8 + 16]);
         let frame_header_buffer = buff.split_to(8);
@@ -318,7 +318,7 @@ impl RawNetMessage {
         trace!("encoded body({} bytes): {:x?}", buff.len(), buff.as_ref());
 
         Ok(RawNetMessage {
-            kind: kind.into(),
+            kind,
             is_protobuf,
             header,
             data: buff,
