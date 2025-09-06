@@ -83,7 +83,7 @@ impl From<CMsgProtoBufHeader> for NetMessageHeader {
         NetMessageHeader {
             source_job_id: JobId(header.jobid_source()),
             target_job_id: JobId(header.jobid_target()),
-            steam_id: header.steamid().into(),
+            steam_id: header.steamid().try_into().unwrap_or_default(),
             session_id: header.client_sessionid(),
             target_job_name: header
                 .has_target_job_name()
@@ -133,7 +133,10 @@ impl NetMessageHeader {
             let target_job_id = reader.read_u64::<LittleEndian>()?;
             let source_job_id = reader.read_u64::<LittleEndian>()?;
             reader.seek(SeekFrom::Current(1))?; // header canary (fixed)
-            let steam_id = reader.read_u64::<LittleEndian>()?.into();
+            let steam_id = reader
+                .read_u64::<LittleEndian>()?
+                .try_into()
+                .unwrap_or_default();
             let session_id = reader.read_i32::<LittleEndian>()?;
             Ok((
                 NetMessageHeader {

@@ -1,4 +1,5 @@
 use rand::prelude::*;
+use rand::rng;
 use reqwest::{Client, Error};
 use serde::Deserialize;
 use std::iter::Cycle;
@@ -111,8 +112,8 @@ impl From<ServerListResponse> for ServerList {
             value.response.server_list,
             value.response.server_list_websockets,
         );
-        servers.shuffle(&mut thread_rng());
-        ws_servers.shuffle(&mut thread_rng());
+        servers.shuffle(&mut rng());
+        ws_servers.shuffle(&mut rng());
 
         ServerList {
             servers: Arc::new(Mutex::new(servers.into_iter().cycle())),

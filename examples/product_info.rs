@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let buffer = response.apps[0].buffer.as_deref().unwrap_or_default();
     let vdf = String::from_utf8(buffer.into())?;
     let vdf = vdf.trim().trim_matches('\0');
-    let parsed: Table = vdf_reader::from_str(&vdf)?;
+    let parsed: Table = vdf_reader::from_str(vdf)?;
     dbg!(parsed);
 
     Ok(())

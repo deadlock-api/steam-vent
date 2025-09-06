@@ -1,6 +1,7 @@
 use std::env::args;
 use std::error::Error;
 use std::io::stdin;
+use std::str::FromStr;
 use steam_vent::auth::{
     AuthConfirmationHandler, ConsoleAuthConfirmationHandler, DeviceConfirmationHandler,
     FileGuardDataStore,
@@ -22,7 +23,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut args = args().skip(1);
     let account = args.next().expect("no account");
     let password = args.next().expect("no password");
-    let target_steam_id = SteamID::try_from(args.next().expect("no target steam id").as_str())
+    let target_steam_id = SteamID::from_str(args.next().expect("no target steam id").as_str())
         .expect("invalid steam id");
 
     let server_list = ServerList::discover().await?;

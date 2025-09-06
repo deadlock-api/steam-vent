@@ -1,6 +1,6 @@
 use crate::net::{NetMessageHeader, NetworkError, RawNetMessage};
 use crate::service_method::ServiceMethodRequest;
-use binread::BinRead;
+use binrw::BinRead;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use bytes::{Buf, BytesMut};
 use crc::{Crc, CRC_32_ISO_HDLC};
@@ -40,7 +40,7 @@ pub enum MessageBodyError {
     #[error("{0}")]
     Protobuf(#[from] protobuf::Error),
     #[error("{0}")]
-    BinRead(#[from] binread::Error),
+    BinRead(#[from] binrw::Error),
     #[error("{0}")]
     IO(#[from] std::io::Error),
     #[error("{0}")]
@@ -86,6 +86,7 @@ pub trait NetMessage: EncodableMessage {
 }
 
 #[derive(Debug, BinRead)]
+#[brw(little)]
 pub(crate) struct ChannelEncryptRequest {
     pub protocol: u32,
     #[allow(dead_code)]
@@ -107,6 +108,7 @@ impl NetMessage for ChannelEncryptRequest {
 }
 
 #[derive(Debug, BinRead)]
+#[brw(little)]
 pub(crate) struct ChannelEncryptResult {
     pub result: u32,
 }

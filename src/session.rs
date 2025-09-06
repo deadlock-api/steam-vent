@@ -15,7 +15,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use steam_vent_crypto::CryptError;
 use steam_vent_proto::steammessages_base::cmsg_ipaddress;
-use steamid_ng::{AccountType, Instance, SteamID, Universe};
+use steamid_ng::{
+    AccountType, Instance, InstanceFlags, InstanceType, SteamID, SteamIDParseError, Universe,
+};
 use thiserror::Error;
 use tracing::debug;
 
@@ -58,6 +60,8 @@ pub enum LoginError {
     UnavailableAccount,
     #[error("rate limited")]
     RateLimited,
+    #[error("invalid steam id")]
+    InvalidSteamId,
 }
 
 impl From<EResult> for LoginError {
@@ -73,8 +77,15 @@ impl From<EResult> for LoginError {
             | EResult::LimitExceeded
             | EResult::AccountLimitExceeded => LoginError::RateLimited,
             EResult::AccountLoginDeniedNeedTwoFactor => LoginError::SteamGuardRequired,
+            EResult::InvalidSteamID => LoginError::InvalidSteamId,
             value => LoginError::Unknown(value),
         }
+    }
+}
+
+impl From<SteamIDParseError> for LoginError {
+    fn from(_: SteamIDParseError) -> Self {
+        LoginError::InvalidSteamId
     }
 }
 
@@ -114,7 +125,7 @@ impl Default for Session {
             public_ip: None,
             ip_country_code: None,
             job_id: JobIdCounter::default(),
-            steam_id: SteamID::from(0),
+            steam_id: SteamID::default(),
             heartbeat_interval: Duration::from_secs(15),
             app_id: None,
         }
@@ -164,7 +175,12 @@ pub async fn anonymous(connection: &RawConnection, account_type: AccountType) ->
     send_logon(
         connection,
         logon,
-        SteamID::new(0, Instance::All, account_type, Universe::Public),
+        SteamID::new(
+            0,
+            Instance::new(InstanceType::All, InstanceFlags::None),
+            account_type,
+            Universe::Public,
+        ),
     )
     .await
 }
@@ -248,7 +264,7 @@ pub async fn hello<C: ConnectionImpl>(conn: &mut C) -> std::result::Result<(), N
         session_id: 0,
         source_job_id: JobId::NONE,
         target_job_id: JobId::NONE,
-        steam_id: SteamID::from(0),
+        steam_id: SteamID::default(),
         ..NetMessageHeader::default()
     };
 

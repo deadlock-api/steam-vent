@@ -7,7 +7,7 @@ use std::sync::Arc;
 use steam_vent::connection::UnAuthenticatedConnection;
 use steam_vent::{NetworkError, ServerList};
 use tokio_tungstenite::tungstenite::{Message as WsMessage, Message};
-use tokio_tungstenite::{connect_async_tls_with_config, Connector};
+use tokio_tungstenite::{Connector, connect_async_tls_with_config};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -27,8 +27,8 @@ pub async fn connect(
     addr: &str,
 ) -> Result<
     (
-        impl Sink<BytesMut, Error = NetworkError>,
-        impl Stream<Item = Result<BytesMut, NetworkError>>,
+        impl Sink<BytesMut, Error = NetworkError> + use<>,
+        impl Stream<Item = Result<BytesMut, NetworkError>> + use<>,
     ),
     NetworkError,
 > {

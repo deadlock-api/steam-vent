@@ -5,7 +5,7 @@ use crate::message::{ServiceMethodMessage, ServiceMethodResponseMessage};
 use crate::net::{NetMessageHeader, RawNetMessage};
 use crate::service_method::ServiceMethodRequest;
 use crate::session::{anonymous, login};
-use crate::{Connection, ConnectionError, NetMessage, NetworkError, ServerList};
+use crate::{Connection, ConnectionError, LoginError, NetMessage, NetworkError, ServerList};
 use bytes::BytesMut;
 use futures_util::future::{select, Either};
 use futures_util::Stream;
@@ -83,7 +83,7 @@ impl UnAuthenticatedConnection {
             debug!(account, "found stored guard data");
         }
         let begin = begin_password_auth(&mut raw, account, password, guard_data.as_deref()).await?;
-        let steam_id = SteamID::from(begin.steam_id());
+        let steam_id = SteamID::from_steam64(begin.steam_id()).map_err(LoginError::from)?;
 
         let allowed_confirmations = begin.allowed_confirmations();
 

@@ -6,7 +6,7 @@ use std::future::ready;
 use std::sync::Arc;
 use tokio_stream::Stream;
 use tokio_tungstenite::tungstenite::{Message as WsMessage, Message};
-use tokio_tungstenite::{connect_async_tls_with_config, Connector};
+use tokio_tungstenite::{Connector, connect_async_tls_with_config};
 use tracing::{debug, instrument};
 
 type Result<T, E = NetworkError> = std::result::Result<T, E>;
@@ -15,8 +15,8 @@ type Result<T, E = NetworkError> = std::result::Result<T, E>;
 pub async fn connect(
     addr: &str,
 ) -> Result<(
-    impl Sink<BytesMut, Error = NetworkError>,
-    impl Stream<Item = Result<BytesMut>>,
+    impl Sink<BytesMut, Error = NetworkError> + use<>,
+    impl Stream<Item = Result<BytesMut>> + use<>,
 )> {
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
