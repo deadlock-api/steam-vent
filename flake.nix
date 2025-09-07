@@ -13,13 +13,5 @@
   outputs = {mill-scale, ...}:
     mill-scale ./. {
       extraFiles = ["system.pem"];
-      packages = {
-        proto-builder = {craneLib, ...}:
-          craneLib.buildPackage {
-            src = craneLib.cleanCargoSource ./protobuf/build;
-            doCheck = false;
-            strictDeps = true;
-          };
-      };
     };
 }
