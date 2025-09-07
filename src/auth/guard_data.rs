@@ -60,10 +60,10 @@ impl FileGuardDataStore {
     ///
     /// This will be
     /// - `$XDG_CACHE_HOME/steam-vent/machine_token.json` (where `$XDG_CACHE_HOME` defaults to `$HOME/.cache`) on Linux
-    /// - `$HOME/Library/Caches/steam-vent/nl.icewind.steam-vent/machine_token.json` on macOS
-    /// - `%LocalAppData%/icewind/steam-vent/cache/machine_token.json` on Windows
+    /// - `$HOME/Library/Caches/steam-vent/steam-vent.steam-vent/machine_token.json` on macOS
+    /// - `%LocalAppData%/steam-vent/steam-vent/cache/machine_token.json` on Windows
     pub fn user_cache() -> Self {
-        let project_dirs = ProjectDirs::from("nl", "icewind", "steam-vent")
+        let project_dirs = ProjectDirs::from("", "steam-vent", "steam-vent")
             .expect("user cache not supported on this platform");
         Self::new(project_dirs.cache_dir().join("machine_tokens.json"))
     }
