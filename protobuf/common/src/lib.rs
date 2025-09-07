@@ -1,3 +1,5 @@
+//! Common types for protobufs used by steam-vent
+
 pub use protobuf;
 use protobuf::Enum;
 use std::fmt::Debug;
@@ -10,11 +12,13 @@ pub trait RpcService {
     const SERVICE_NAME: &'static str;
 }
 
+/// A protobuf message for an rpc method with associated response
 pub trait RpcMethod: protobuf::Message + RpcMessage {
     const METHOD_NAME: &'static str;
     type Response: RpcMessage;
 }
 
+/// A protobuf message send as either request or response
 pub trait RpcMessage: Debug + Sized {
     fn parse(_reader: &mut dyn Read) -> protobuf::Result<Self>;
 
@@ -23,6 +27,7 @@ pub trait RpcMessage: Debug + Sized {
     fn encode_size(&self) -> usize;
 }
 
+/// An empty message
 impl RpcMessage for () {
     fn parse(_reader: &mut dyn Read) -> protobuf::Result<Self> {
         Ok(())
@@ -37,6 +42,9 @@ impl RpcMessage for () {
     }
 }
 
+/// An rpc message with associated kind.
+///
+/// The associated kind is used to differentiate incoming messages
 pub trait RpcMessageWithKind: RpcMessage {
     type KindEnum: MsgKindEnum;
     const KIND: Self::KindEnum;

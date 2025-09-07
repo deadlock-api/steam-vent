@@ -1,3 +1,5 @@
+//! Protobufs for steam-vent for non-game messages
+
 mod generated;
 
 pub use generated::*;
