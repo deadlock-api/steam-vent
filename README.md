@@ -7,9 +7,12 @@ regular steam client.
 
 ## State
 
-While the project is still incomplete, the most forms of authenticating to steam
-are implemented and you can send requests for the protobuf definitions included
-in the project.
+Most forms of authenticating to steam are implemented, and you can send requests
+for using protobufs that are either packaged by the project or that you bring
+yourself.
+
+While the api isn't fully stable yet, it's unlikely to receive major changes at
+this point.
 
 - [x] Anonymous sessions
 - [x] Password Authentication
@@ -20,8 +23,16 @@ in the project.
 - [x] Sending and receiving raw messages
 - [x] Making RPC calls over the connection
 - [x] Communicating with the game coordinator
-- [ ] High level wrappers around the RPC calls
 - [x] Allow using messages from protobufs not included in the project
+
+## Non-goals
+
+This crate intentionally does not include any high level apis, instead it's
+encouraged to implement high level apis in separate crates that wrap a
+`Connection`.
+
+See [steam-vent-chat](https://codeberg.org/steam-vent/chat) for an example
+high-level library.
 
 ## Usage
 
@@ -55,6 +66,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 ```
+
+## Protobuf packages
+
+Game-specific probufs are packaged for the following games:
+
+- [tf2](https://codeberg.org/steam-vent/proto-tf2)
+- [csgo](https://codeberg.org/steam-vent/proto-csgo)
+- [dota2](https://codeberg.org/steam-vent/proto-dota2)
+
+They can be used by either enabling the features in this crate or by depending
+on the protobuf package directly.
 
 ## Credit
 
