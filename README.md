@@ -151,31 +151,22 @@ This is in large parts inspired by and based of
 to all who worked on that.
 
 [GDS]:
-https://docs.rs/steam-vent/latest/steam_vent/auth/trait.GuardDataStore.html
-
+  https://docs.rs/steam-vent/latest/steam_vent/auth/trait.GuardDataStore.html
 [NGDS]:
-https://docs.rs/steam-vent/latest/steam_vent/auth/struct.NullGuardDataStore.html
-
+  https://docs.rs/steam-vent/latest/steam_vent/auth/struct.NullGuardDataStore.html
 [FGDS]:
-https://docs.rs/steam-vent/latest/steam_vent/auth/struct.FileGuardDataStore.html
-
+  https://docs.rs/steam-vent/latest/steam_vent/auth/struct.FileGuardDataStore.html
 [user_cache]:
-https://docs.rs/steam-vent/latest/steam_vent/auth/struct.FileGuardDataStore.html#method.user_cache
-
+  https://docs.rs/steam-vent/latest/steam_vent/auth/struct.FileGuardDataStore.html#method.user_cache
 [ACH]:
-https://docs.rs/steam-vent/latest/steam_vent/auth/trait.AuthConfirmationHandler.html
-
+  https://docs.rs/steam-vent/latest/steam_vent/auth/trait.AuthConfirmationHandler.html
 [DCH]:
-https://docs.rs/steam-vent/latest/steam_vent/auth/struct.DeviceConfirmationHandler.html
-
+  https://docs.rs/steam-vent/latest/steam_vent/auth/struct.DeviceConfirmationHandler.html
 [UPACH]:
-https://docs.rs/steam-vent/latest/steam_vent/auth/type.ConsoleAuthConfirmationHandler.html
-
+  https://docs.rs/steam-vent/latest/steam_vent/auth/type.ConsoleAuthConfirmationHandler.html
 [CACH]:
-https://docs.rs/steam-vent/latest/steam_vent/auth/struct.UserProvidedAuthConfirmationHandler.html
-
+  https://docs.rs/steam-vent/latest/steam_vent/auth/struct.UserProvidedAuthConfirmationHandler.html
 [SSACH]:
-https://docs.rs/steam-vent/latest/steam_vent/auth/struct.SharedSecretAuthConfirmationHandler.html
-
+  https://docs.rs/steam-vent/latest/steam_vent/auth/struct.SharedSecretAuthConfirmationHandler.html
 [ACH::or]:
-https://docs.rs/steam-vent/latest/steam_vent/auth/trait.AuthConfirmationHandler.html#method.or
+  https://docs.rs/steam-vent/latest/steam_vent/auth/trait.AuthConfirmationHandler.html#method.or

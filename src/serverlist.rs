@@ -26,6 +26,7 @@ impl From<reqwest::Error> for ServerDiscoveryError {
     }
 }
 
+/// Options to use for discovering steam api servers
 #[derive(Default, Clone, Debug)]
 pub struct DiscoverOptions {
     web_client: Option<Client>,
@@ -35,6 +36,7 @@ pub struct DiscoverOptions {
 }
 
 impl DiscoverOptions {
+    /// Set the request client to use to make requests to the web-api
     pub fn with_web_client(self, web_client: Client) -> Self {
         DiscoverOptions {
             web_client: Some(web_client),
@@ -42,22 +44,34 @@ impl DiscoverOptions {
         }
     }
 
+    /// Specify the steam cell ID to request servers for.
     pub fn with_cell(self, cell: u8) -> Self {
         DiscoverOptions { cell, ..self }
     }
 }
 
+/// A list of tcp and websocket servers to use for connecting
 #[derive(Debug, Clone)]
 pub struct ServerList {
-    servers: Arc<Mutex<Cycle<IntoIter<SocketAddr>>>>,
+    tcp_servers: Arc<Mutex<Cycle<IntoIter<SocketAddr>>>>,
     ws_servers: Arc<Mutex<Cycle<IntoIter<String>>>>,
 }
 
 impl ServerList {
+    /// Create a server list from the provided servers
+    pub fn new(tcp_servers: Vec<SocketAddr>, ws_servers: Vec<String>) -> Self {
+        ServerList {
+            tcp_servers: Arc::new(Mutex::new(tcp_servers.into_iter().cycle())),
+            ws_servers: Arc::new(Mutex::new(ws_servers.into_iter().cycle())),
+        }
+    }
+
+    /// Discover the server list from the steam web-api with default options
     pub async fn discover() -> Result<ServerList, ServerDiscoveryError> {
         Self::discover_with(DiscoverOptions::default()).await
     }
 
+    /// Discover the server list from the steam web-api with custom options
     pub async fn discover_with(
         options: DiscoverOptions,
     ) -> Result<ServerList, ServerDiscoveryError> {
@@ -89,7 +103,7 @@ impl ServerList {
         // SAFETY:
         // `lock` cannot panic as we cannot lock again within the same thread.
         // `unwrap` is safe as `discover_with` already checks for servers being present.
-        let addr = self.servers.lock().unwrap().next().unwrap();
+        let addr = self.tcp_servers.lock().unwrap().next().unwrap();
         debug!(addr = ?addr, "picked server from list");
         addr
     }
@@ -115,10 +129,7 @@ impl From<ServerListResponse> for ServerList {
         servers.shuffle(&mut rng());
         ws_servers.shuffle(&mut rng());
 
-        ServerList {
-            servers: Arc::new(Mutex::new(servers.into_iter().cycle())),
-            ws_servers: Arc::new(Mutex::new(ws_servers.into_iter().cycle())),
-        }
+        ServerList::new(servers, ws_servers)
     }
 }
 
