@@ -53,17 +53,31 @@ impl DiscoverOptions {
 /// A list of tcp and websocket servers to use for connecting
 #[derive(Debug, Clone)]
 pub struct ServerList {
+    tcp_count: usize,
     tcp_servers: Arc<Mutex<Cycle<IntoIter<SocketAddr>>>>,
+    ws_count: usize,
     ws_servers: Arc<Mutex<Cycle<IntoIter<String>>>>,
 }
 
 impl ServerList {
     /// Create a server list from the provided servers
-    pub fn new(tcp_servers: Vec<SocketAddr>, ws_servers: Vec<String>) -> Self {
-        ServerList {
+    pub fn new(
+        tcp_servers: Vec<SocketAddr>,
+        ws_servers: Vec<String>,
+    ) -> Result<Self, ServerDiscoveryError> {
+        if tcp_servers.is_empty() {
+            return Err(ServerDiscoveryError::NoServers);
+        }
+        if ws_servers.is_empty() {
+            return Err(ServerDiscoveryError::NoWsServers);
+        }
+
+        Ok(ServerList {
+            tcp_count: tcp_servers.len(),
+            ws_count: ws_servers.len(),
             tcp_servers: Arc::new(Mutex::new(tcp_servers.into_iter().cycle())),
             ws_servers: Arc::new(Mutex::new(ws_servers.into_iter().cycle())),
-        }
+        })
     }
 
     /// Discover the server list from the steam web-api with default options
@@ -86,13 +100,7 @@ impl ServerList {
             .await?
             .json()
             .await?;
-        if response.response.server_list.is_empty() {
-            return Err(ServerDiscoveryError::NoServers);
-        }
-        if response.response.server_list.is_empty() {
-            return Err(ServerDiscoveryError::NoWsServers);
-        }
-        Ok(response.into())
+        response.try_into()
     }
 
     /// Pick a server from the server list, rotating them in a round-robin way for reconnects.
@@ -118,10 +126,67 @@ impl ServerList {
         debug!(addr = ?addr, "picked websocket server from list");
         format!("wss://{addr}/cmsocket/")
     }
+
+    pub fn tcp_servers(&self) -> Vec<SocketAddr> {
+        let mut iter = self.tcp_servers.lock().unwrap();
+        take_from_iter(&mut *iter, self.tcp_count)
+    }
+
+    pub fn ws_servers(&self) -> Vec<String> {
+        let mut iter = self.ws_servers.lock().unwrap();
+        take_from_iter(&mut *iter, self.ws_count)
+    }
 }
 
-impl From<ServerListResponse> for ServerList {
-    fn from(value: ServerListResponse) -> Self {
+fn take_from_iter<T, I: Iterator<Item = T>>(iter: &mut I, count: usize) -> Vec<T> {
+    let mut result = Vec::with_capacity(count);
+    for _ in 0..count {
+        if let Some(item) = iter.next() {
+            result.push(item)
+        }
+    }
+    result
+}
+
+#[test]
+fn test_save_servers() {
+    use std::net::{IpAddr, Ipv4Addr};
+
+    let socket1 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 1234);
+    let socket2 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 2345);
+
+    let ws1 = String::from("server1:1234");
+    let ws2 = String::from("server2");
+    let ws3 = String::from("server3");
+
+    let list = ServerList::new(
+        vec![socket1.clone(), socket2.clone()],
+        vec![ws1.clone(), ws2.clone(), ws3.clone()],
+    )
+    .unwrap();
+
+    assert_eq!(vec![socket1.clone(), socket2.clone()], list.tcp_servers());
+    assert_eq!(
+        vec![ws1.clone(), ws2.clone(), ws3.clone()],
+        list.ws_servers()
+    );
+
+    let _ = list.pick();
+    let _ = list.pick_ws();
+    let _ = list.pick_ws();
+    let _ = list.pick_ws();
+
+    assert_eq!(vec![socket2.clone(), socket1.clone()], list.tcp_servers());
+    assert_eq!(
+        vec![ws1.clone(), ws2.clone(), ws3.clone()],
+        list.ws_servers()
+    );
+}
+
+impl TryFrom<ServerListResponse> for ServerList {
+    type Error = ServerDiscoveryError;
+
+    fn try_from(value: ServerListResponse) -> Result<Self, Self::Error> {
         let (mut servers, mut ws_servers) = (
             value.response.server_list,
             value.response.server_list_websockets,
