@@ -60,6 +60,7 @@ impl Connection {
         Self(raw)
     }
 
+    /// Start an anonymous client session on a new connection
     pub async fn anonymous(server_list: &ServerList) -> Result<Self, ConnectionError> {
         UnAuthenticatedConnection::connect(server_list)
             .await?
@@ -67,6 +68,7 @@ impl Connection {
             .await
     }
 
+    /// Start an anonymous server session on a new connection
     pub async fn anonymous_server(server_list: &ServerList) -> Result<Self, ConnectionError> {
         UnAuthenticatedConnection::connect(server_list)
             .await?
@@ -74,6 +76,7 @@ impl Connection {
             .await
     }
 
+    /// Start a client session on a new connection
     pub async fn login<H: AuthConfirmationHandler, G: GuardDataStore>(
         server_list: &ServerList,
         account: &str,
@@ -176,6 +179,7 @@ pub trait ReadonlyConnection {
 
 /// A trait for sending messages to steam
 pub trait ConnectionTrait {
+    /// Listen for notification messages from steam
     fn on_notification<T: ServiceMethodRequest>(&self) -> impl Stream<Item = Result<T>> + 'static;
 
     /// Wait for one message of a specific kind, also returning the header
@@ -222,12 +226,14 @@ pub trait ConnectionTrait {
         kind: K,
     ) -> impl Future<Output = Result<()>> + Send;
 
+    /// Send a message to steam without waiting for a response, with a customized header↑
     fn raw_send<Msg: NetMessage>(
         &self,
         header: NetMessageHeader,
         msg: Msg,
     ) -> impl Future<Output = Result<()>> + Send;
 
+    /// Send a message to steam without waiting for a response, with a customized header↑ and overwriting the kind of the message
     fn raw_send_with_kind<Msg: EncodableMessage, K: MsgKindEnum>(
         &self,
         header: NetMessageHeader,

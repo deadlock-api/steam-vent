@@ -17,4 +17,5 @@ pub use game_coordinator::GameCoordinator;
 pub use message::NetMessage;
 pub use net::{NetworkError, RawNetMessage};
 pub use serverlist::{DiscoverOptions, ServerDiscoveryError, ServerList};
+pub use service_method::ServiceMethodRequest;
 pub use session::{ConnectionError, LoginError};
