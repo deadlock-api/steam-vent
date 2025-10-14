@@ -49,11 +49,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         connection
     };
 
-    println!(
-        "access token for future use: {:?}",
-        connection.access_token()
-    );
-
     println!("requesting games");
 
     let req = CPlayer_GetOwnedGames_Request {
