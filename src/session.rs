@@ -1,5 +1,6 @@
 use crate::auth::{ConfirmationError, ConfirmationMethod};
 use crate::connection::raw::RawConnection;
+use crate::connection::unauthenticated::AccessTokenError;
 use crate::connection::{ConnectionImpl, ConnectionTrait};
 use crate::eresult::EResult;
 use crate::net::{JobId, NetMessageHeader, NetworkError};
@@ -26,6 +27,8 @@ type Result<T, E = ConnectionError> = std::result::Result<T, E>;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ConnectionError {
+    #[error("Access token error: {0:#}")]
+    AccessToken(#[from] AccessTokenError),
     #[error("Network error: {0:#}")]
     Network(#[from] NetworkError),
     #[error("Login failed: {0:#}")]

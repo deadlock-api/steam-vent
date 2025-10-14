@@ -87,6 +87,17 @@ impl Connection {
             .await
     }
 
+    pub async fn access(
+        server_list: &ServerList,
+        account: &str,
+        access_token: &str,
+    ) -> Result<Self, ConnectionError> {
+        UnAuthenticatedConnection::connect(server_list)
+            .await?
+            .access(account, access_token)
+            .await
+    }
+
     pub fn steam_id(&self) -> SteamID {
         self.session().steam_id
     }
