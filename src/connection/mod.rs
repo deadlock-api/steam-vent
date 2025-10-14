@@ -98,6 +98,10 @@ impl Connection {
             .await
     }
 
+    pub fn access_token(&self) -> Option<&str> {
+        self.session().access_token.as_deref()
+    }
+
     pub fn steam_id(&self) -> SteamID {
         self.session().steam_id
     }

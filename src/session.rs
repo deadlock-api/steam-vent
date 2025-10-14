@@ -118,6 +118,7 @@ pub struct Session {
     pub steam_id: SteamID,
     pub heartbeat_interval: Duration,
     pub app_id: Option<u32>,
+    pub access_token: Option<String>,
 }
 
 impl Default for Session {
@@ -131,6 +132,7 @@ impl Default for Session {
             steam_id: SteamID::default(),
             heartbeat_interval: Duration::from_secs(15),
             app_id: None,
+            access_token: None,
         }
     }
 }
@@ -220,6 +222,8 @@ async fn send_logon(
     logon: CMsgClientLogon,
     steam_id: SteamID,
 ) -> Result<Session> {
+    let access_token = logon.access_token.clone();
+
     let header = NetMessageHeader {
         source_job_id: JobId::NONE,
         target_job_id: JobId::NONE,
@@ -253,6 +257,7 @@ async fn send_logon(
         job_id: JobIdCounter::default(),
         heartbeat_interval: Duration::from_secs(response.heartbeat_seconds() as u64),
         app_id: None,
+        access_token,
     })
 }
 
