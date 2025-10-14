@@ -55,3 +55,7 @@ dota2 = ["steam-vent-proto/dota2"]
 [[example]]
 name = "backpack"
 required-features = ["tf2"]
+
+[[example]]
+name = "inventory"
+required-features = ["csgo"]
