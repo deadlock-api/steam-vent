@@ -2,8 +2,8 @@ use crate::connection::{ConnectionImpl, ConnectionTrait, MessageFilter, MessageS
 use crate::message::EncodableMessage;
 use crate::net::{decode_kind, NetMessageHeader, RawNetMessage};
 use crate::session::Session;
-use crate::{Connection, NetworkError};
-use futures_util::future::select;
+use crate::{Connection, NetMessage, NetworkError};
+use futures_util::future::{Either, select};
 use protobuf::Message;
 use std::fmt::{Debug, Formatter};
 use std::pin::pin;
@@ -77,6 +77,23 @@ impl Debug for GameCoordinator {
 
 impl GameCoordinator {
     pub async fn new(connection: &Connection, app_id: u32) -> Result<Self, NetworkError> {
+        let (gc, _) = Self::with_raw_welcome(connection, app_id).await?;
+        Ok(gc)
+    }
+
+    /// Create new `GameCoordinator` instance returning the received welcome message.
+    pub async fn with_welcome<Welcome: NetMessage>(
+        connection: &Connection,
+        app_id: u32,
+    ) -> Result<(Self, Welcome), NetworkError> {
+        let (gc, welcome) = Self::with_raw_welcome(connection, app_id).await?;
+        Ok((gc, welcome.into_message()?))
+    }
+
+    async fn with_raw_welcome(
+        connection: &Connection,
+        app_id: u32,
+    ) -> Result<(Self, RawNetMessage), NetworkError> {
         let (tx, rx) = channel(10);
         let filter = MessageFilter::new(ReceiverStream::new(rx));
         let gc_messages = connection.on::<ClientFromGcMessage>();
@@ -123,8 +140,14 @@ impl GameCoordinator {
                 sleep(Duration::from_secs(5)).await;
             }
         };
-        select(pin!(welcome), pin!(hello_sender)).await;
-        Ok(gc)
+
+        let welcome = match select(pin!(welcome), pin!(hello_sender)).await {
+            Either::Left((welcome, _)) => welcome?,
+            Either::Right((hello_sender, _)) => {
+                return Err(hello_sender.expect_err("unreachable: unexpected Ok from hello_sender"));
+            }
+        };
+        Ok((gc, welcome))
     }
 
     async fn send_hello(&self) -> Result<(), NetworkError> {
@@ -138,15 +161,14 @@ impl GameCoordinator {
         Ok(())
     }
 
-    async fn wait_welcome(&self) -> Result<(), NetworkError> {
+    async fn wait_welcome(&self) -> Result<RawNetMessage, NetworkError> {
         if self.session.is_server() {
             self.filter.one_kind(GCMsgKind::k_EMsgGCServerWelcome)
         } else {
             self.filter.one_kind(GCMsgKind::k_EMsgGCClientWelcome)
         }
         .await
-        .map_err(|_| NetworkError::EOF)?;
-        Ok(())
+        .map_err(|_| NetworkError::EOF)
     }
 }
 
