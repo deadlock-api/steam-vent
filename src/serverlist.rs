@@ -160,12 +160,12 @@ fn test_save_servers() {
     let ws3 = String::from("server3");
 
     let list = ServerList::new(
-        vec![socket1.clone(), socket2.clone()],
+        vec![socket1, socket2],
         vec![ws1.clone(), ws2.clone(), ws3.clone()],
     )
     .unwrap();
 
-    assert_eq!(vec![socket1.clone(), socket2.clone()], list.tcp_servers());
+    assert_eq!(vec![socket1, socket2], list.tcp_servers());
     assert_eq!(
         vec![ws1.clone(), ws2.clone(), ws3.clone()],
         list.ws_servers()
@@ -176,7 +176,7 @@ fn test_save_servers() {
     let _ = list.pick_ws();
     let _ = list.pick_ws();
 
-    assert_eq!(vec![socket2.clone(), socket1.clone()], list.tcp_servers());
+    assert_eq!(vec![socket2, socket1], list.tcp_servers());
     assert_eq!(
         vec![ws1.clone(), ws2.clone(), ws3.clone()],
         list.ws_servers()

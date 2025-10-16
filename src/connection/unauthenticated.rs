@@ -1,6 +1,6 @@
 use super::raw::RawConnection;
 use super::{ReadonlyConnection, Result};
-use crate::auth::{begin_password_auth, AuthConfirmationHandler, GuardDataStore};
+use crate::auth::{AuthConfirmationHandler, GuardDataStore, begin_password_auth};
 use crate::message::{ServiceMethodMessage, ServiceMethodResponseMessage};
 use crate::net::{NetMessageHeader, RawNetMessage};
 use crate::service_method::ServiceMethodRequest;
@@ -9,25 +9,27 @@ use crate::{Connection, ConnectionError, LoginError, NetMessage, NetworkError, S
 use base64::Engine;
 use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use bytes::BytesMut;
-use futures_util::future::{select, Either};
 use futures_util::Stream;
+use futures_util::future::{Either, select};
 use futures_util::{FutureExt, Sink};
 use serde::Deserialize;
-use thiserror::Error;
 use std::future::Future;
 use std::pin::pin;
 use steam_vent_proto::enums_clientserver::EMsg;
 use steamid_ng::{AccountType, SteamID};
+use thiserror::Error;
 use tokio::time::timeout;
-use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
+use tokio_stream::wrappers::BroadcastStream;
 use tracing::{debug, error};
 
 /// JWT access token payload descriptor.
 #[derive(Deserialize)]
+#[non_exhaustive]
 pub struct AccessToken {
     pub iss: String,
     pub sub: String,
+    #[allow(dead_code)]
     pub exp: u64,
     // ..extra unused fields
 }
