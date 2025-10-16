@@ -6,10 +6,14 @@ use crate::net::{NetMessageHeader, RawNetMessage};
 use crate::service_method::ServiceMethodRequest;
 use crate::session::{anonymous, login};
 use crate::{Connection, ConnectionError, LoginError, NetMessage, NetworkError, ServerList};
+use base64::Engine;
+use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use bytes::BytesMut;
 use futures_util::future::{select, Either};
 use futures_util::Stream;
 use futures_util::{FutureExt, Sink};
+use serde::Deserialize;
+use thiserror::Error;
 use std::future::Future;
 use std::pin::pin;
 use steam_vent_proto::enums_clientserver::EMsg;
@@ -18,6 +22,29 @@ use tokio::time::timeout;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 use tracing::{debug, error};
+
+/// JWT access token payload descriptor.
+#[derive(Deserialize)]
+pub struct AccessToken {
+    pub iss: String,
+    pub sub: String,
+    pub exp: u64,
+    // ..extra unused fields
+}
+
+#[derive(Debug, Error)]
+pub enum AccessTokenError {
+    #[error("expired")]
+    Expired,
+    #[error("malformed token supplied")]
+    Malformed,
+    #[error("invalid issuer")]
+    InvalidIssuer,
+    #[error("{0:#}")]
+    Base64(#[from] base64::DecodeError),
+    #[error("{0:#}")]
+    Json(#[from] serde_json::Error),
+}
 
 /// A Connection that hasn't been authentication yet
 pub struct UnAuthenticatedConnection(RawConnection);
@@ -126,6 +153,53 @@ impl UnAuthenticatedConnection {
         let connection = Connection::new(raw);
 
         Ok(connection)
+    }
+
+    /// Start a client session with this connection using access token.
+    pub async fn access(
+        self,
+        account: &str,
+        access_token: &str,
+    ) -> Result<Connection, ConnectionError> {
+        let mut raw = self.0;
+
+        let access_token_payload = access_token
+            .split('.')
+            .nth(1)
+            .ok_or_else(|| ConnectionError::AccessToken(AccessTokenError::Malformed))
+            .and_then(|base64| {
+                BASE64_URL_SAFE_NO_PAD
+                    .decode(base64)
+                    .map_err(|error| ConnectionError::AccessToken(AccessTokenError::Base64(error)))
+            })
+            .and_then(|json| {
+                serde_json::from_slice::<AccessToken>(&json)
+                    .map_err(|error| ConnectionError::AccessToken(AccessTokenError::Json(error)))
+            })?;
+
+        if access_token_payload.iss != "steam" {
+            return Err(ConnectionError::AccessToken(
+                AccessTokenError::InvalidIssuer,
+            ));
+        }
+
+        // TODO: Consider adding `AccessToken.exp` check (expiration UNIX timestamp in seconds).
+
+        raw.session = login(
+            &mut raw,
+            account,
+            SteamID::from_steam64(
+                access_token_payload
+                    .sub
+                    .parse()
+                    .map_err(|_| ConnectionError::LoginError(LoginError::InvalidSteamId))?,
+            )
+            .map_err(|_| ConnectionError::LoginError(LoginError::InvalidSteamId))?,
+            access_token,
+        )
+        .await?;
+        raw.setup_heartbeat();
+        Ok(Connection::new(raw))
     }
 }
 
