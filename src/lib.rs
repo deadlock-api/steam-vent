@@ -13,7 +13,7 @@ pub use steam_vent_proto as proto;
 
 pub use connection::{Connection, ConnectionTrait, ReadonlyConnection};
 pub use eresult::EResult;
-pub use game_coordinator::GameCoordinator;
+pub use game_coordinator::{GameCoordinator, handshake::GCHandshake};
 pub use message::NetMessage;
 pub use net::{NetworkError, RawNetMessage};
 pub use serverlist::{DiscoverOptions, ServerDiscoveryError, ServerList};

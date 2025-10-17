@@ -1,3 +1,5 @@
+pub mod handshake;
+
 use crate::connection::{ConnectionImpl, ConnectionTrait, MessageFilter, MessageSender};
 use crate::message::EncodableMessage;
 use crate::net::{decode_kind, NetMessageHeader, RawNetMessage};
