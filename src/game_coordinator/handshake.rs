@@ -1,11 +1,11 @@
 use crate::NetMessage;
 
 pub trait GCHandshake {
-    const APP_ID: u32;
-
     type Hello: NetMessage;
 
     type Welcome: NetMessage;
+
+    fn app_id(&self) -> u32;
 
     fn hello(&self) -> Self::Hello;
 }

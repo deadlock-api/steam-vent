@@ -97,7 +97,7 @@ impl GameCoordinator {
         handshake: &Handshake,
     ) -> Result<(Self, Handshake::Welcome), NetworkError> {
         let (gc, welcome) =
-            Self::init_raw(connection, Handshake::APP_ID, || handshake.hello()).await?;
+            Self::init_raw(connection, handshake.app_id(), || handshake.hello()).await?;
         Ok((gc, welcome.into_message()?))
     }
 

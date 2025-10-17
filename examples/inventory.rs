@@ -15,11 +15,13 @@ use steam_vent::{Connection, GCHandshake, ServerList};
 pub struct CsgoHandshake;
 
 impl GCHandshake for CsgoHandshake {
-    const APP_ID: u32 = 730;
-
     type Hello = CMsgClientHello;
 
     type Welcome = CMsgClientWelcome;
+
+    fn app_id(&self) -> u32 {
+        730
+    }
 
     fn hello(&self) -> Self::Hello {
         CMsgClientHello {
