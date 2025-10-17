@@ -5,7 +5,7 @@ use steam_vent::auth::{
     AuthConfirmationHandler, ConsoleAuthConfirmationHandler, DeviceConfirmationHandler,
     FileGuardDataStore,
 };
-use steam_vent::{Connection, ConnectionTrait, GameCoordinator, ServerList};
+use steam_vent::{Connection, ConnectionTrait, GenericGCHandshake, ServerList};
 use steam_vent_proto::tf2::base_gcmessages::CSOEconItem;
 use steam_vent_proto::tf2::gcsdk_gcmessages::{
     CMsgSOCacheSubscribed, CMsgSOCacheSubscriptionRefresh,
@@ -32,7 +32,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("starting game coordinator");
 
-    let game_coordinator = GameCoordinator::new(&connection, 440).await?;
+    let (game_coordinator, _welcome) = connection
+        .game_coordinator(&GenericGCHandshake::new(440))
+        .await?;
 
     println!("requesting backpack");
 
