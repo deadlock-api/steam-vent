@@ -1,9 +1,9 @@
 use protobuf::{Message as _, SpecialFields};
 use steam_vent_proto::{
-    RpcMessage, RpcMessageWithKind, steammessages_clientserver_login::CMsgClientHello,
+    steammessages_clientserver_login::CMsgClientHello, RpcMessage, RpcMessageWithKind,
 };
 
-use crate::{NetMessage, game_coordinator::GCMsgKind};
+use crate::{game_coordinator::GCMsgKind, NetMessage};
 
 pub trait GCHandshake {
     type Hello: NetMessage;
