@@ -10,6 +10,7 @@ use crate::net::{NetMessageHeader, NetworkError, RawNetMessage};
 use crate::serverlist::ServerList;
 use crate::service_method::ServiceMethodRequest;
 use crate::session::{ConnectionError, Session};
+use crate::{GCHandshake, GameCoordinator};
 use async_stream::try_stream;
 pub(crate) use filter::MessageFilter;
 use futures_util::{FutureExt, Sink, SinkExt};
@@ -139,6 +140,15 @@ impl Connection {
     /// this method clears the buffer
     pub fn take_unprocessed(&self) -> Vec<RawNetMessage> {
         self.0.filter.unprocessed()
+    }
+}
+
+impl Connection {
+    pub async fn game_coordinator<Handshake: GCHandshake>(
+        &self,
+        handshake: &Handshake,
+    ) -> Result<(GameCoordinator, Handshake::Welcome), NetworkError> {
+        GameCoordinator::with_handshake(self, handshake).await
     }
 }
 
