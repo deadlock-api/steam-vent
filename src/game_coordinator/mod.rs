@@ -1,8 +1,10 @@
+pub mod handshake;
+
 use crate::connection::{ConnectionImpl, ConnectionTrait, MessageFilter, MessageSender};
 use crate::message::EncodableMessage;
 use crate::net::{decode_kind, JobId, NetMessageHeader, RawNetMessage};
 use crate::session::Session;
-use crate::{Connection, NetMessage, NetworkError};
+use crate::{Connection, GCHandshake, NetMessage, NetworkError};
 use futures_util::future::{Either, select};
 use protobuf::Message;
 use std::fmt::{Debug, Formatter};
@@ -77,7 +79,7 @@ impl Debug for GameCoordinator {
 
 impl GameCoordinator {
     pub async fn new(connection: &Connection, app_id: u32) -> Result<Self, NetworkError> {
-        let (gc, _) = Self::with_raw_welcome(connection, app_id).await?;
+        let (gc, _) = Self::init_raw(connection, app_id, CMsgClientHello::default).await?;
         Ok(gc)
     }
 
@@ -86,13 +88,23 @@ impl GameCoordinator {
         connection: &Connection,
         app_id: u32,
     ) -> Result<(Self, Welcome), NetworkError> {
-        let (gc, welcome) = Self::with_raw_welcome(connection, app_id).await?;
+        let (gc, welcome) = Self::init_raw(connection, app_id, CMsgClientHello::default).await?;
         Ok((gc, welcome.into_message()?))
     }
 
-    async fn with_raw_welcome(
+    pub async fn with_handshake<Handshake: GCHandshake>(
+        connection: &Connection,
+        handshake: &Handshake,
+    ) -> Result<(Self, Handshake::Welcome), NetworkError> {
+        let (gc, welcome) =
+            Self::init_raw(connection, handshake.app_id(), || handshake.hello()).await?;
+        Ok((gc, welcome.into_message()?))
+    }
+
+    async fn init_raw<HelloMsg: NetMessage, HelloFn: Fn() -> HelloMsg>(
         connection: &Connection,
         app_id: u32,
+        hello_msg: HelloFn,
     ) -> Result<(Self, RawNetMessage), NetworkError> {
         let (tx, rx) = channel(10);
         let filter = MessageFilter::new(ReceiverStream::new(rx));
@@ -134,7 +146,7 @@ impl GameCoordinator {
         let welcome = gc.wait_welcome();
         let hello_sender = async {
             loop {
-                if let Err(e) = gc.send_hello().await {
+                if let Err(e) = gc.send_hello(&hello_msg).await {
                     return Result::<(), _>::Err(e);
                 };
                 sleep(Duration::from_secs(5)).await;
@@ -150,12 +162,15 @@ impl GameCoordinator {
         Ok((gc, welcome))
     }
 
-    async fn send_hello(&self) -> Result<(), NetworkError> {
+    async fn send_hello<HelloMsg: NetMessage, HelloFn: Fn() -> HelloMsg>(
+        &self,
+        hello_fn: HelloFn,
+    ) -> Result<(), NetworkError> {
         if self.session.is_server() {
-            self.send_with_kind(CMsgClientHello::default(), GCMsgKind::k_EMsgGCServerHello)
+            self.send_with_kind(hello_fn(), GCMsgKind::k_EMsgGCServerHello)
                 .await?;
         } else {
-            self.send_with_kind(CMsgClientHello::default(), GCMsgKind::k_EMsgGCClientHello)
+            self.send_with_kind(hello_fn(), GCMsgKind::k_EMsgGCClientHello)
                 .await?;
         }
         Ok(())
