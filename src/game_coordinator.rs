@@ -1,6 +1,6 @@
 use crate::connection::{ConnectionImpl, ConnectionTrait, MessageFilter, MessageSender};
 use crate::message::EncodableMessage;
-use crate::net::{decode_kind, NetMessageHeader, RawNetMessage};
+use crate::net::{decode_kind, JobId, NetMessageHeader, RawNetMessage};
 use crate::session::Session;
 use crate::{Connection, NetMessage, NetworkError};
 use futures_util::future::{Either, select};
@@ -187,12 +187,17 @@ impl ConnectionImpl for GameCoordinator {
 
     async fn raw_send_with_kind<Msg: EncodableMessage, K: MsgKindEnum>(
         &self,
-        header: NetMessageHeader,
+        mut header: NetMessageHeader,
         msg: Msg,
         kind: K,
         is_protobuf: bool,
     ) -> Result<(), NetworkError> {
-        let nested_header = NetMessageHeader::default();
+        let nested_header = NetMessageHeader {
+            source_job_id: header.source_job_id,
+            ..Default::default()
+        };
+        header.source_job_id = JobId::default();
+
         let mut payload: Vec<u8> = Vec::with_capacity(
             nested_header.encode_size(kind.into(), is_protobuf) + msg.encode_size(),
         );
