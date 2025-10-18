@@ -9,7 +9,7 @@ repository = "https://codeberg.org/steam-vent/steam-vent"
 rust-version = "1.85.0"
 
 [dependencies]
-steam-vent-proto = "0.5"
+steam-vent-proto = "0.5.1"
 steam-vent-crypto = { version = "0.2", path = "./crypto" }
 tokio = { version = "1.47.1", features = ["net", "io-util", "macros", "io-std"] }
 tokio-util = { version = "0.7.16", features = ["codec"] }
