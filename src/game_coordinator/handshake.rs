@@ -1,6 +1,6 @@
 use protobuf::{Message as _, SpecialFields};
 use steam_vent_proto::{
-    GCHandshake, RpcMessage, RpcMessageWithKind, steammessages_clientserver_login::CMsgClientHello,
+    steammessages_clientserver_login::CMsgClientHello, GCHandshake, RpcMessage, RpcMessageWithKind,
 };
 
 use crate::game_coordinator::GCMsgKind;
