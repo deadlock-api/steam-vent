@@ -1812,7 +1812,7 @@ dependencies = [
  "rand 0.8.5",
  "rsa",
  "sha-1",
- "thiserror 1.0.69",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
