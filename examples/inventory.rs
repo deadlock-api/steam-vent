@@ -6,33 +6,9 @@ use steam_vent::auth::{
     AuthConfirmationHandler, ConsoleAuthConfirmationHandler, DeviceConfirmationHandler,
     FileGuardDataStore,
 };
-use steam_vent::proto::csgo::{
-    base_gcmessages::CSOEconItem,
-    gcsdk_gcmessages::{CMsgClientHello, CMsgClientWelcome},
-};
-use steam_vent::{Connection, GCHandshake, ServerList};
-
-pub struct CsgoHandshake;
-
-impl GCHandshake for CsgoHandshake {
-    type Hello = CMsgClientHello;
-
-    type Welcome = CMsgClientWelcome;
-
-    fn app_id(&self) -> u32 {
-        730
-    }
-
-    fn hello(&self) -> Self::Hello {
-        CMsgClientHello {
-            version: Some(2_000_651),
-            client_session_need: Some(0),
-            client_launcher: Some(0),
-            steam_launcher: Some(0),
-            ..Default::default()
-        }
-    }
-}
+use steam_vent::proto::csgo::{base_gcmessages::CSOEconItem, gcsdk_gcmessages::CMsgClientHello};
+use steam_vent::{Connection, ServerList};
+use steam_vent_proto::csgo::GCHandshake;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -54,7 +30,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("starting game coordinator");
 
-    let (_game_coordinator, welcome) = connection.game_coordinator(&CsgoHandshake).await?;
+    let (_game_coordinator, welcome) = connection
+        .game_coordinator(&GCHandshake {
+            hello: CMsgClientHello {
+                version: Some(2_000_651),
+                client_session_need: Some(0),
+                client_launcher: Some(0),
+                steam_launcher: Some(0),
+                ..Default::default()
+            },
+        })
+        .await?;
 
     let mut inventory = BTreeMap::new();
 

@@ -4,7 +4,7 @@ use crate::connection::{ConnectionImpl, ConnectionTrait, MessageFilter, MessageS
 use crate::message::EncodableMessage;
 use crate::net::{decode_kind, JobId, NetMessageHeader, RawNetMessage};
 use crate::session::Session;
-use crate::{Connection, GCHandshake, NetMessage, NetworkError};
+use crate::{Connection, NetMessage, NetworkError};
 use futures_util::future::{Either, select};
 use protobuf::Message;
 use std::fmt::{Debug, Formatter};
@@ -15,7 +15,7 @@ use steam_vent_proto::steammessages_clientserver::cmsg_client_games_played::Game
 use steam_vent_proto::steammessages_clientserver::CMsgClientGamesPlayed;
 use steam_vent_proto::steammessages_clientserver_2::CMsgGCClient;
 use steam_vent_proto::steammessages_clientserver_login::CMsgClientHello;
-use steam_vent_proto::{MsgKindEnum, RpcMessage, RpcMessageWithKind};
+use steam_vent_proto::{GCHandshake, MsgKindEnum, RpcMessage, RpcMessageWithKind};
 use tokio::spawn;
 use tokio::sync::mpsc::channel;
 use tokio::time::sleep;

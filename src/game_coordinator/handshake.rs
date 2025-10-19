@@ -1,28 +1,22 @@
 use protobuf::{Message as _, SpecialFields};
 use steam_vent_proto::{
-    steammessages_clientserver_login::CMsgClientHello, RpcMessage, RpcMessageWithKind,
+    GCHandshake, RpcMessage, RpcMessageWithKind, steammessages_clientserver_login::CMsgClientHello,
 };
 
-use crate::{game_coordinator::GCMsgKind, NetMessage};
-
-pub trait GCHandshake {
-    type Hello: NetMessage;
-
-    type Welcome: NetMessage;
-
-    fn app_id(&self) -> u32;
-
-    fn hello(&self) -> Self::Hello;
-}
+use crate::game_coordinator::GCMsgKind;
 
 pub struct GenericGCHandshake {
     pub app_id: u32,
+    pub hello: CMsgClientHello,
 }
 
 impl GenericGCHandshake {
     #[must_use]
     pub fn new(app_id: u32) -> Self {
-        Self { app_id }
+        Self {
+            app_id,
+            hello: CMsgClientHello::default(),
+        }
     }
 }
 
@@ -36,7 +30,7 @@ impl GCHandshake for GenericGCHandshake {
     }
 
     fn hello(&self) -> Self::Hello {
-        CMsgClientHello::default()
+        self.hello.clone()
     }
 }
 
