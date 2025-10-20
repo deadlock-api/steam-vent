@@ -78,6 +78,7 @@ impl Debug for GameCoordinator {
 }
 
 impl GameCoordinator {
+    /// Create new `GameCoordinator` with the default handshake
     pub async fn new(connection: &Connection, app_id: u32) -> Result<Self, NetworkError> {
         let (gc, _) = Self::init_raw(connection, app_id, CMsgClientHello::default).await?;
         Ok(gc)
@@ -92,6 +93,7 @@ impl GameCoordinator {
         Ok((gc, welcome.into_message()?))
     }
 
+    /// Create new `GameCoordinator` instance with a custom handshake
     pub async fn with_handshake<Handshake: GCHandshake>(
         connection: &Connection,
         handshake: &Handshake,

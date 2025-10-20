@@ -144,6 +144,7 @@ impl Connection {
 }
 
 impl Connection {
+    /// Create new `GameCoordinator` instance using this connection
     pub async fn game_coordinator<Handshake: GCHandshake>(
         &self,
         handshake: &Handshake,
