@@ -15,7 +15,7 @@ pub use connection::{Connection, ConnectionTrait, ReadonlyConnection};
 pub use eresult::EResult;
 pub use game_coordinator::{GameCoordinator, handshake::GenericGCHandshake};
 pub use message::NetMessage;
-pub use net::{NetworkError, RawNetMessage};
+pub use net::{NetMessageHeader, NetworkError, RawNetMessage};
 pub use serverlist::{DiscoverOptions, ServerDiscoveryError, ServerList};
 pub use service_method::ServiceMethodRequest;
 pub use session::{ConnectionError, LoginError};
