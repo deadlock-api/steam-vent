@@ -36,8 +36,10 @@ high-level library.
 
 ## Documentation
 
-The main documentation can be found at [steam-vent.grebedoc.dev](https://steam-vent.grebedoc.dev/), additional api
-documentation can be at [docs.rs/steam-vent](https://docs.rs/steam-vent/latest/steam_vent/).
+The main documentation can be found at
+[steam-vent.grebedoc.dev](https://steam-vent.grebedoc.dev/), additional api
+documentation can be at
+[docs.rs/steam-vent](https://docs.rs/steam-vent/latest/steam_vent/).
 
 ## Usage
 
