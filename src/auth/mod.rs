@@ -16,8 +16,8 @@ use crate::proto::steammessages_auth_steamclient::{
     EAuthTokenPlatformType,
 };
 use crate::session::{ConnectionError, LoginError};
-use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 pub use confirmation::*;
 pub use guard_data::*;
 use num_bigint_dig::BigUint;

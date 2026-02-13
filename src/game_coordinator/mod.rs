@@ -2,7 +2,7 @@ pub mod handshake;
 
 use crate::connection::{ConnectionImpl, ConnectionTrait, MessageFilter, MessageSender};
 use crate::message::EncodableMessage;
-use crate::net::{decode_kind, JobId, NetMessageHeader, RawNetMessage};
+use crate::net::{JobId, NetMessageHeader, RawNetMessage, decode_kind, encode_kind};
 use crate::session::Session;
 use crate::{Connection, NetMessage, NetworkError};
 use futures_util::future::{Either, select};
@@ -11,21 +11,21 @@ use std::fmt::{Debug, Formatter};
 use std::pin::pin;
 use std::time::Duration;
 use steam_vent_proto::enums_clientserver::EMsg;
-use steam_vent_proto::steammessages_clientserver::cmsg_client_games_played::GamePlayed;
 use steam_vent_proto::steammessages_clientserver::CMsgClientGamesPlayed;
+use steam_vent_proto::steammessages_clientserver::cmsg_client_games_played::GamePlayed;
 use steam_vent_proto::steammessages_clientserver_2::CMsgGCClient;
 use steam_vent_proto::steammessages_clientserver_login::CMsgClientHello;
-use steam_vent_proto::{GCHandshake, MsgKindEnum, RpcMessage, RpcMessageWithKind};
+use steam_vent_proto::{GCHandshake, MsgKind, MsgKindEnum, RpcMessage, RpcMessageWithKind};
 use tokio::spawn;
 use tokio::sync::mpsc::channel;
 use tokio::time::sleep;
-use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
+use tokio_stream::wrappers::ReceiverStream;
 use tracing::debug;
 
 pub struct GameCoordinator {
     app_id: u32,
-    filter: MessageFilter,
+    pub filter: MessageFilter,
     sender: MessageSender,
     session: Session,
     timeout: Duration,
@@ -103,11 +103,13 @@ impl GameCoordinator {
         Ok((gc, welcome.into_message()?))
     }
 
-    async fn init_raw<HelloMsg: NetMessage, HelloFn: Fn() -> HelloMsg>(
+    /// Create a new GameCoordinator without running the startup sequence.
+    ///
+    /// Some games don't follow the same hello/welcome sequence.
+    pub async fn new_without_startup(
         connection: &Connection,
         app_id: u32,
-        hello_msg: HelloFn,
-    ) -> Result<(Self, RawNetMessage), NetworkError> {
+    ) -> Result<Self, NetworkError> {
         let (tx, rx) = channel(10);
         let filter = MessageFilter::new(ReceiverStream::new(rx));
         let gc_messages = connection.on::<ClientFromGcMessage>();
@@ -131,6 +133,16 @@ impl GameCoordinator {
             session: connection.session().clone().with_app_id(app_id),
             timeout: connection.timeout(),
         };
+
+        Ok(gc)
+    }
+
+    async fn init_raw<HelloMsg: NetMessage, HelloFn: Fn() -> HelloMsg>(
+        connection: &Connection,
+        app_id: u32,
+        hello_msg: HelloFn,
+    ) -> Result<(Self, RawNetMessage), NetworkError> {
+        let gc = Self::new_without_startup(connection, app_id).await?;
 
         connection
             .send_with_kind(
@@ -164,7 +176,7 @@ impl GameCoordinator {
         Ok((gc, welcome))
     }
 
-    async fn send_hello<HelloMsg: NetMessage, HelloFn: Fn() -> HelloMsg>(
+    pub async fn send_hello<HelloMsg: NetMessage, HelloFn: Fn() -> HelloMsg>(
         &self,
         hello_fn: HelloFn,
     ) -> Result<(), NetworkError> {
@@ -178,7 +190,7 @@ impl GameCoordinator {
         Ok(())
     }
 
-    async fn wait_welcome(&self) -> Result<RawNetMessage, NetworkError> {
+    pub async fn wait_welcome(&self) -> Result<RawNetMessage, NetworkError> {
         if self.session.is_server() {
             self.filter.one_kind(GCMsgKind::k_EMsgGCServerWelcome)
         } else {
@@ -202,11 +214,11 @@ impl ConnectionImpl for GameCoordinator {
         &self.session
     }
 
-    async fn raw_send_with_kind<Msg: EncodableMessage, K: MsgKindEnum>(
+    async fn raw_send_with_kind<Msg: EncodableMessage>(
         &self,
         mut header: NetMessageHeader,
         msg: Msg,
-        kind: K,
+        kind: MsgKind,
         is_protobuf: bool,
     ) -> Result<(), NetworkError> {
         let nested_header = NetMessageHeader {
@@ -215,15 +227,14 @@ impl ConnectionImpl for GameCoordinator {
         };
         header.source_job_id = JobId::default();
 
-        let mut payload: Vec<u8> = Vec::with_capacity(
-            nested_header.encode_size(kind.into(), is_protobuf) + msg.encode_size(),
-        );
+        let mut payload: Vec<u8> =
+            Vec::with_capacity(nested_header.encode_size(kind, is_protobuf) + msg.encode_size());
 
         nested_header.write(&mut payload, kind, is_protobuf)?;
         msg.write_body(&mut payload)?;
         let data = CMsgGCClient {
             appid: Some(self.app_id),
-            msgtype: Some(kind.encode_kind(is_protobuf)),
+            msgtype: Some(encode_kind(kind, is_protobuf)),
             payload: Some(payload),
             ..Default::default()
         };

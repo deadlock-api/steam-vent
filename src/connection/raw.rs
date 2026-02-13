@@ -1,9 +1,9 @@
 use super::Result;
 use crate::connection::{ConnectionImpl, MessageFilter, MessageSender};
-use crate::message::{flatten_multi, EncodableMessage};
+use crate::message::{EncodableMessage, flatten_multi};
 use crate::net::{NetMessageHeader, RawNetMessage};
-use crate::session::{hello, Session};
-use crate::transport::websocket::connect;
+use crate::session::{Session, hello};
+use crate::transport::websocket::{connect, connect_with_proxy};
 use crate::{ConnectionError, NetworkError, ServerList};
 use bytes::BytesMut;
 use futures_util::{Sink, SinkExt, Stream};
@@ -11,8 +11,8 @@ use std::fmt::{Debug, Formatter};
 use std::future::ready;
 use std::sync::Arc;
 use std::time::Duration;
+use steam_vent_proto::MsgKind;
 use steam_vent_proto::steammessages_clientserver_login::CMsgClientHeartBeat;
-use steam_vent_proto::MsgKindEnum;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tokio::{select, spawn};
@@ -39,6 +39,15 @@ impl Debug for RawConnection {
 impl RawConnection {
     pub async fn connect(server_list: &ServerList) -> Result<Self, ConnectionError> {
         let (sender, receiver) = connect(&server_list.pick_ws()).await?;
+        Self::from_sender_receiver(sender, receiver).await
+    }
+
+    pub async fn connect_with_proxy(
+        server_list: &ServerList,
+        proxy: Option<String>,
+    ) -> Result<Self, ConnectionError> {
+        let addr = server_list.pick_ws();
+        let (sender, receiver) = connect_with_proxy(&addr, proxy).await?;
         Self::from_sender_receiver(sender, receiver).await
     }
 
@@ -117,11 +126,11 @@ impl ConnectionImpl for RawConnection {
         &self.session
     }
 
-    async fn raw_send_with_kind<Msg: EncodableMessage, K: MsgKindEnum>(
+    async fn raw_send_with_kind<Msg: EncodableMessage>(
         &self,
         header: NetMessageHeader,
         msg: Msg,
-        kind: K,
+        kind: MsgKind,
         is_protobuf: bool,
     ) -> Result<()> {
         let msg = RawNetMessage::from_message_with_kind(header, msg, kind, is_protobuf)?;

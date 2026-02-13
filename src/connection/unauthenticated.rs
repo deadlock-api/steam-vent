@@ -75,6 +75,16 @@ impl UnAuthenticatedConnection {
         ))
     }
 
+    /// Connect to a server from the server list with optional proxy support
+    pub async fn connect_with_proxy(
+        server_list: &ServerList,
+        proxy: Option<String>,
+    ) -> Result<Self, ConnectionError> {
+        Ok(UnAuthenticatedConnection(
+            RawConnection::connect_with_proxy(server_list, proxy).await?,
+        ))
+    }
+
     /// Start an anonymous client session with this connection
     pub async fn anonymous(self) -> Result<Connection, ConnectionError> {
         let mut raw = self.0;
@@ -254,7 +264,7 @@ pub(crate) async fn service_method_un_authenticated<Msg: ServiceMethodRequest>(
     let msg = RawNetMessage::from_message_with_kind(
         header,
         ServiceMethodMessage(msg),
-        EMsg::k_EMsgServiceMethodCallFromClientNonAuthed,
+        EMsg::k_EMsgServiceMethodCallFromClientNonAuthed.into(),
         true,
     )?;
     connection.sender.send_raw(msg).await?;

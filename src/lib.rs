@@ -1,3 +1,4 @@
+#![allow(clippy::result_large_err)]
 pub mod auth;
 pub mod connection;
 mod eresult;
@@ -14,7 +15,7 @@ pub use steam_vent_proto as proto;
 pub use connection::{Connection, ConnectionTrait, ReadonlyConnection};
 pub use eresult::EResult;
 pub use game_coordinator::{GameCoordinator, handshake::GenericGCHandshake};
-pub use message::NetMessage;
+pub use message::{NetMessage, UntypedMessage};
 pub use net::{NetMessageHeader, NetworkError, RawNetMessage};
 pub use serverlist::{DiscoverOptions, ServerDiscoveryError, ServerList};
 pub use service_method::ServiceMethodRequest;

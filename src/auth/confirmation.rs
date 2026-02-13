@@ -1,12 +1,12 @@
 use crate::auth::SteamGuardToken;
 use another_steam_totp::generate_auth_code;
-use futures_util::future::{select, Either};
+use futures_util::future::{Either, select};
 use std::pin::pin;
 use steam_vent_proto::steammessages_auth_steamclient::{
     CAuthentication_AllowedConfirmation, EAuthSessionGuardType,
 };
 use tokio::io::AsyncBufReadExt;
-use tokio::io::{stdin, stdout, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, Stdin, Stdout};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, Stdin, Stdout, stdin, stdout};
 
 /// A method that can be used to confirm a login
 #[derive(Debug, Clone)]

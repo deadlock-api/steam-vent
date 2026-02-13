@@ -3,12 +3,12 @@ use crate::service_method::ServiceMethodRequest;
 use binrw::BinRead;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use bytes::{Buf, BytesMut};
-use crc::{Crc, CRC_32_ISO_HDLC};
+use crc::{CRC_32_ISO_HDLC, Crc};
 use flate2::read::GzDecoder;
 use futures_util::{
+    StreamExt,
     future::ready,
     stream::{iter, once},
-    StreamExt,
 };
 use num_bigint_dig::ParseBigIntError;
 use protobuf::Message;
@@ -83,6 +83,20 @@ pub trait NetMessage: EncodableMessage {
     type KindEnum: MsgKindEnum;
     const KIND: Self::KindEnum;
     const IS_PROTOBUF: bool = false;
+}
+
+#[derive(Debug)]
+pub struct UntypedMessage(pub Vec<u8>);
+
+impl EncodableMessage for UntypedMessage {
+    fn write_body<W: Write>(&self, mut writer: W) -> Result<(), std::io::Error> {
+        writer.write_all(&self.0)?;
+        Ok(())
+    }
+
+    fn encode_size(&self) -> usize {
+        self.0.len()
+    }
 }
 
 #[derive(Debug, BinRead)]
@@ -312,8 +326,8 @@ impl NetMessage for ServiceMethodResponseMessage {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ServiceMethodNotification {
-    pub(crate) job_name: String,
+pub struct ServiceMethodNotification {
+    pub job_name: String,
     body: BytesMut,
 }
 

@@ -2,6 +2,7 @@ mod filter;
 pub(crate) mod raw;
 pub(crate) mod unauthenticated;
 
+use crate::GameCoordinator;
 use crate::auth::{AuthConfirmationHandler, GuardDataStore};
 use crate::message::{
     EncodableMessage, NetMessage, ServiceMethodMessage, ServiceMethodResponseMessage,
@@ -10,7 +11,6 @@ use crate::net::{NetMessageHeader, NetworkError, RawNetMessage};
 use crate::serverlist::ServerList;
 use crate::service_method::ServiceMethodRequest;
 use crate::session::{ConnectionError, Session};
-use crate::GameCoordinator;
 use async_stream::try_stream;
 pub(crate) use filter::MessageFilter;
 use futures_util::{FutureExt, Sink, SinkExt};
@@ -20,7 +20,7 @@ use std::future::Future;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use steam_vent_proto::{GCHandshake, JobMultiple, MsgKindEnum};
+use steam_vent_proto::{GCHandshake, JobMultiple, MsgKind, MsgKindEnum};
 use steamid_ng::SteamID;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
@@ -86,6 +86,21 @@ impl Connection {
         confirmation_handler: H,
     ) -> Result<Self, ConnectionError> {
         UnAuthenticatedConnection::connect(server_list)
+            .await?
+            .login(account, password, guard_data_store, confirmation_handler)
+            .await
+    }
+
+    /// Start a client session on a new connection with proxy support
+    pub async fn login_with_proxy<H: AuthConfirmationHandler, G: GuardDataStore>(
+        server_list: &ServerList,
+        account: &str,
+        password: &str,
+        guard_data_store: G,
+        confirmation_handler: H,
+        proxy: Option<String>,
+    ) -> Result<Self, ConnectionError> {
+        UnAuthenticatedConnection::connect_with_proxy(server_list, proxy)
             .await?
             .login(account, password, guard_data_store, confirmation_handler)
             .await
@@ -158,11 +173,11 @@ pub(crate) trait ConnectionImpl: Sync + Debug {
     fn filter(&self) -> &MessageFilter;
     fn session(&self) -> &Session;
 
-    fn raw_send_with_kind<Msg: EncodableMessage, K: MsgKindEnum>(
+    fn raw_send_with_kind<Msg: EncodableMessage>(
         &self,
         header: NetMessageHeader,
         msg: Msg,
-        kind: K,
+        kind: MsgKind,
         is_protobuf: bool,
     ) -> impl Future<Output = Result<()>> + Send;
 }
@@ -221,6 +236,14 @@ pub trait ConnectionTrait {
         msg: Msg,
     ) -> impl Future<Output = Result<Rsp>> + Send;
 
+    /// Send an untyped message to steam, waiting for a response with the same job id
+    fn job_untyped<Msg: EncodableMessage>(
+        &self,
+        msg: Msg,
+        kind: MsgKind,
+        is_protobuf: bool,
+    ) -> impl Future<Output = Result<RawNetMessage>> + Send;
+
     /// Send a message to steam, receiving responses until the response marks that the response is complete
     fn job_multi<Msg: NetMessage, Rsp: NetMessage + JobMultiple>(
         &self,
@@ -230,6 +253,14 @@ pub trait ConnectionTrait {
     /// Send a message to steam without waiting for a response
     fn send<Msg: NetMessage>(&self, msg: Msg) -> impl Future<Output = Result<()>> + Send;
 
+    /// Send an untyped message to steam without waiting for a response
+    fn send_untyped<Msg: EncodableMessage>(
+        &self,
+        msg: Msg,
+        kind: MsgKind,
+        is_protobuf: bool,
+    ) -> impl Future<Output = Result<()>> + Send;
+
     /// Send a message to steam without waiting for a response, overwriting the kind of the message
     fn send_with_kind<Msg: NetMessage, K: MsgKindEnum>(
         &self,
@@ -237,19 +268,19 @@ pub trait ConnectionTrait {
         kind: K,
     ) -> impl Future<Output = Result<()>> + Send;
 
-    /// Send a message to steam without waiting for a response, with a customized header↑
+    /// Send a message to steam without waiting for a response, with a customized header
     fn raw_send<Msg: NetMessage>(
         &self,
         header: NetMessageHeader,
         msg: Msg,
     ) -> impl Future<Output = Result<()>> + Send;
 
-    /// Send a message to steam without waiting for a response, with a customized header↑ and overwriting the kind of the message
-    fn raw_send_with_kind<Msg: EncodableMessage, K: MsgKindEnum>(
+    /// Send a message to steam without waiting for a response, with a customized header and overwriting the kind of the message
+    fn raw_send_with_kind<Msg: EncodableMessage>(
         &self,
         header: NetMessageHeader,
         msg: Msg,
-        kind: K,
+        kind: MsgKind,
         is_protobuf: bool,
     ) -> impl Future<Output = Result<()>> + Send;
 }
@@ -267,11 +298,11 @@ impl ConnectionImpl for Connection {
         self.0.session()
     }
 
-    async fn raw_send_with_kind<Msg: EncodableMessage, K: MsgKindEnum>(
+    async fn raw_send_with_kind<Msg: EncodableMessage>(
         &self,
         header: NetMessageHeader,
         msg: Msg,
-        kind: K,
+        kind: MsgKind,
         is_protobuf: bool,
     ) -> Result<()> {
         <RawConnection as ConnectionImpl>::raw_send_with_kind(
@@ -346,6 +377,26 @@ impl<C: ConnectionImpl> ConnectionTrait for C {
             .into_message()
     }
 
+    async fn job_untyped<Msg: EncodableMessage>(
+        &self,
+        msg: Msg,
+        kind: MsgKind,
+        is_protobuf: bool,
+    ) -> Result<RawNetMessage> {
+        let header = self.session().header(true);
+        let recv = self.filter().on_job_id(header.source_job_id);
+
+        self.raw_send_with_kind(header, msg, kind, is_protobuf)
+            .await?;
+
+        let res = timeout(self.timeout(), recv)
+            .await
+            .map_err(|_| NetworkError::Timeout)?
+            .map_err(|_| NetworkError::EOF)?;
+
+        Ok(res)
+    }
+
     fn job_multi<Msg: NetMessage, Rsp: NetMessage + JobMultiple>(
         &self,
         msg: Msg,
@@ -376,6 +427,16 @@ impl<C: ConnectionImpl> ConnectionTrait for C {
         self.raw_send(self.session().header(false), msg)
     }
 
+    #[instrument(skip(msg))]
+    fn send_untyped<Msg: EncodableMessage>(
+        &self,
+        msg: Msg,
+        kind: MsgKind,
+        is_protobuf: bool,
+    ) -> impl Future<Output = Result<()>> + Send {
+        self.raw_send_with_kind(self.session().header(false), msg, kind, is_protobuf)
+    }
+
     #[instrument(skip(msg, kind), fields(kind = ?kind))]
     fn send_with_kind<Msg: NetMessage, K: MsgKindEnum>(
         &self,
@@ -383,7 +444,7 @@ impl<C: ConnectionImpl> ConnectionTrait for C {
         kind: K,
     ) -> impl Future<Output = Result<()>> + Send {
         let header = self.session().header(false);
-        self.raw_send_with_kind(header, msg, kind, Msg::IS_PROTOBUF)
+        self.raw_send_with_kind(header, msg, kind.into(), Msg::IS_PROTOBUF)
     }
 
     fn raw_send<Msg: NetMessage>(
@@ -391,14 +452,14 @@ impl<C: ConnectionImpl> ConnectionTrait for C {
         header: NetMessageHeader,
         msg: Msg,
     ) -> impl Future<Output = Result<()>> + Send {
-        self.raw_send_with_kind(header, msg, Msg::KIND, Msg::IS_PROTOBUF)
+        self.raw_send_with_kind(header, msg, Msg::KIND.into(), Msg::IS_PROTOBUF)
     }
 
-    fn raw_send_with_kind<Msg: EncodableMessage, K: MsgKindEnum>(
+    fn raw_send_with_kind<Msg: EncodableMessage>(
         &self,
         header: NetMessageHeader,
         msg: Msg,
-        kind: K,
+        kind: MsgKind,
         is_protobuf: bool,
     ) -> impl Future<Output = Result<()>> + Send {
         <Self as ConnectionImpl>::raw_send_with_kind(self, header, msg, kind, is_protobuf)

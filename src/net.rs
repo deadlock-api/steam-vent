@@ -8,8 +8,8 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 use std::io::{Cursor, Seek, SeekFrom};
 use steam_vent_crypto::CryptError;
+use steam_vent_proto::MsgKind;
 use steam_vent_proto::enums_clientserver::EMsg;
-use steam_vent_proto::{MsgKind, MsgKindEnum};
 use steamid_ng::SteamID;
 use thiserror::Error;
 use tracing::{debug, trace};
@@ -43,6 +43,10 @@ pub enum NetworkError {
     Timeout,
     #[error("Remote returned an error code: {0:?}")]
     ApiError(EResult),
+    #[error("{0}")]
+    Reqwest(#[from] reqwest::Error),
+    #[error("{0}")]
+    ReqwestWs(#[from] reqwest_websocket::Error),
 }
 
 impl From<EResult> for NetworkError {
@@ -52,6 +56,15 @@ impl From<EResult> for NetworkError {
 }
 
 pub type Result<T, E = NetworkError> = std::result::Result<T, E>;
+
+/// Encode a MsgKind as a u32, applying the protobuf mask if needed
+pub(crate) fn encode_kind(kind: MsgKind, is_protobuf: bool) -> u32 {
+    if is_protobuf {
+        kind.value() as u32 | PROTO_MASK
+    } else {
+        kind.value() as u32
+    }
+}
 
 /// A unique (per-session) identifier that links request-response pairs
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -153,18 +166,18 @@ impl NetMessageHeader {
         }
     }
 
-    pub(crate) fn write<W: WriteBytesExt, K: MsgKindEnum>(
+    pub(crate) fn write<W: WriteBytesExt>(
         &self,
         writer: &mut W,
-        kind: K,
+        kind: MsgKind,
         proto: bool,
     ) -> std::io::Result<()> {
-        if MsgKind::from(kind) == EMsg::k_EMsgChannelEncryptResponse {
+        if kind == EMsg::k_EMsgChannelEncryptResponse {
             writer.write_u32::<LittleEndian>(kind.value() as u32)?;
         } else if proto {
             trace!("writing header for {:?} protobuf message: {:?}", kind, self);
-            let proto_header = self.proto_header(kind.into());
-            writer.write_u32::<LittleEndian>(kind.encode_kind(true))?;
+            let proto_header = self.proto_header(kind);
+            writer.write_u32::<LittleEndian>(encode_kind(kind, true))?;
             writer.write_u32::<LittleEndian>(proto_header.compute_size() as u32)?;
             proto_header.write_to_writer(writer)?;
         } else {
@@ -277,13 +290,13 @@ impl RawNetMessage {
     }
 
     pub fn from_message<T: NetMessage>(header: NetMessageHeader, message: T) -> Result<Self> {
-        Self::from_message_with_kind(header, message, T::KIND, T::IS_PROTOBUF)
+        Self::from_message_with_kind(header, message, T::KIND.into(), T::IS_PROTOBUF)
     }
 
-    pub fn from_message_with_kind<T: EncodableMessage, K: MsgKindEnum>(
+    pub fn from_message_with_kind<T: EncodableMessage>(
         mut header: NetMessageHeader,
         message: T,
-        kind: K,
+        kind: MsgKind,
         is_protobuf: bool,
     ) -> Result<Self> {
         debug!("writing raw {:?} message", kind);
@@ -298,7 +311,7 @@ impl RawNetMessage {
         //
         // 8 byte frame header, 16 byte iv, header, body, 16 byte encryption padding
         let mut buff = BytesMut::with_capacity(
-            8 + 16 + header.encode_size(kind.into(), is_protobuf) + body_size + 16,
+            8 + 16 + header.encode_size(kind, is_protobuf) + body_size + 16,
         );
         buff.extend([0; 8 + 16]);
         let frame_header_buffer = buff.split_to(8);
@@ -315,7 +328,7 @@ impl RawNetMessage {
         trace!("encoded body({} bytes): {:x?}", buff.len(), buff.as_ref());
 
         Ok(RawNetMessage {
-            kind: kind.into(),
+            kind,
             is_protobuf,
             header,
             data: buff,

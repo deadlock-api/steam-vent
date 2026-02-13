@@ -1,3 +1,4 @@
+use crate::NetMessage;
 use crate::auth::{ConfirmationError, ConfirmationMethod};
 use crate::connection::raw::RawConnection;
 use crate::connection::unauthenticated::AccessTokenError;
@@ -8,11 +9,10 @@ use crate::proto::steammessages_base::CMsgIPAddress;
 use crate::proto::steammessages_clientserver_login::{
     CMsgClientHello, CMsgClientLogon, CMsgClientLogonResponse,
 };
-use crate::NetMessage;
 use protobuf::MessageField;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use steam_vent_crypto::CryptError;
 use steam_vent_proto::steammessages_base::cmsg_ipaddress;
@@ -254,7 +254,7 @@ async fn send_logon(
         }),
         ip_country_code: response.ip_country_code.clone(),
         steam_id: header.steam_id,
-        job_id: JobIdCounter::default(),
+        job_id: connection.session.job_id.clone(),
         heartbeat_interval: Duration::from_secs(response.heartbeat_seconds() as u64),
         app_id: None,
         access_token,
@@ -279,7 +279,7 @@ pub async fn hello<C: ConnectionImpl>(conn: &mut C) -> std::result::Result<(), N
     conn.raw_send_with_kind(
         header,
         req,
-        CMsgClientHello::KIND,
+        CMsgClientHello::KIND.into(),
         CMsgClientHello::IS_PROTOBUF,
     )
     .await?;

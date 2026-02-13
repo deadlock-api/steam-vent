@@ -1,9 +1,9 @@
 use crate::message::{
-    flatten_multi, ChannelEncryptRequest, ChannelEncryptResult, ClientEncryptResponse, NetMessage,
+    ChannelEncryptRequest, ChannelEncryptResult, ClientEncryptResponse, NetMessage, flatten_multi,
 };
 use crate::net::{NetMessageHeader, NetworkError, RawNetMessage};
 use crate::transport::assert_can_unsplit;
-use bytemuck::{cast, Pod, Zeroable};
+use bytemuck::{Pod, Zeroable, cast};
 use bytes::{Buf, BufMut, BytesMut};
 use futures_util::future::ready;
 use futures_util::{Sink, SinkExt, StreamExt, TryStreamExt};
@@ -142,7 +142,7 @@ pub async fn encode_message<T: NetMessage, S: Sink<BytesMut, Error = NetworkErro
     let mut buff = BytesMut::with_capacity(message.encode_size() + 4);
 
     let mut writer = (&mut buff).writer();
-    header.write(&mut writer, T::KIND, T::IS_PROTOBUF)?;
+    header.write(&mut writer, T::KIND.into(), T::IS_PROTOBUF)?;
     message.write_body(&mut writer)?;
 
     trace!("encoded message({} bytes): {:?}", buff.len(), buff.as_ref());
