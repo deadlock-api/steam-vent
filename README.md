@@ -82,8 +82,9 @@ Game-specific probufs are packaged for the following games:
 - [csgo](https://codeberg.org/steam-vent/proto-csgo)
 - [dota2](https://codeberg.org/steam-vent/proto-dota2)
 
-They can be used by either enabling the features in this crate or by depending
-on the protobuf package directly.
+This fork vendors the Steam protobufs regenerated for protobuf 3.7.2 (see
+[proto/README.md](proto/README.md)) and no longer offers the `tf2`, `csgo` and
+`dota2` features, since the published game crates pin protobuf 3.5.1.
 
 ## Credit
 

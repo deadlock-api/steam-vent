@@ -1,0 +1,13 @@
+[package]
+name = "steam-vent-proto"
+version = "0.5.2"
+authors = ["Robin Appelman <robin@icewind.nl>"]
+edition = "2021"
+description = "Protobuf structs used by the Steam client protocol"
+license = "MIT"
+repository = "https://codeberg.org/steam-vent/proto"
+rust-version = "1.78.0"
+
+[dependencies]
+steam-vent-proto-common = { version = "0.5.1", path = "common" }
+steam-vent-proto-steam = { version = "0.5.2", path = "./steam" }

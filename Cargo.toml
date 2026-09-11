@@ -9,7 +9,7 @@ repository = "https://codeberg.org/steam-vent/steam-vent"
 rust-version = "1.85.0"
 
 [dependencies]
-steam-vent-proto = "0.5.2"
+steam-vent-proto = { version = "0.5.2", path = "./proto" }
 steam-vent-crypto = { version = "0.2", path = "./crypto" }
 tokio = { version = "1.49.0", features = ["net", "io-util", "macros", "io-std"] }
 tokio-util = { version = "0.7.18", features = ["codec"] }
@@ -20,7 +20,7 @@ webpki-roots = "1.0.6"
 binrw = "0.15.0"
 thiserror = "2.0.18"
 bytes = "1.11.1"
-protobuf = "=3.5.1"
+protobuf = "=3.7.2"
 bytemuck = { version = "1.25.0", features = ["derive"] }
 crc = "3.4.0"
 byteorder = "1.5.0"
@@ -47,16 +47,3 @@ reqwest-websocket = "0.4.4"
 tokio = { version = "1.49", features = ["macros", "rt", "rt-multi-thread"] }
 tracing-subscriber = "0.3.22"
 vdf-reader = "0.3.3"
-
-[features]
-tf2 = ["steam-vent-proto/tf2"]
-csgo = ["steam-vent-proto/csgo"]
-dota2 = ["steam-vent-proto/dota2"]
-
-[[example]]
-name = "backpack"
-required-features = ["tf2"]
-
-[[example]]
-name = "inventory"
-required-features = ["csgo"]
