@@ -208,6 +208,7 @@ pub async fn login(
         client_language: Some(String::new()),
         machine_name: Some(String::new()),
         steamguard_dont_remember_computer: Some(false),
+        should_remember_password: Some(true),
         chat_mode: Some(2),
         access_token: Some(access_token.into()),
         client_package_version: Some(1771),
